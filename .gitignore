@@ -1,1 +1,22 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+.env/
+
+# VSCode settings
+.vscode/
+
+# Chrome driver folder
 chromedriver-win64/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+secrets.toml
+
+# OS files
+.DS_Store
+Thumbs.db
