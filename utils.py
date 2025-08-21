@@ -40,30 +40,22 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
 
-# =======================
 # Chrome Driver Utility
-# =======================
 def get_chrome_driver(headless=True):
     options = Options()
-    options.add_argument(f"user-agent={USER_AGENT}")
-    if headless:
-        options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
+    if headless:
+        options.add_argument("--headless=new")
 
-    # Auto detect OS
-    os_name = platform.system()
-    if os_name == "Windows":
-        driver_path = ChromeDriverManager().install()
-    elif os_name == "Linux":
-        driver_path = ChromeDriverManager(chrome_type="chromium").install()
-    else:
-        driver_path = ChromeDriverManager().install()
+    # user-agent optional
+    options.add_argument(f"user-agent={os.getenv('USER_AGENT', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')}")
 
-    service = Service(driver_path)
-    driver = webdriver.Chrome(service=service, options=options)
+    # ChromeDriver otomatis sesuai OS
+    driver_path = ChromeDriverManager().install()
+    driver = webdriver.Chrome(service=Service(driver_path), options=options)
     return driver
 
 # =======================
