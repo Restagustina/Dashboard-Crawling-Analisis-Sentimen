@@ -53,10 +53,18 @@ def get_chrome_driver(headless=True):
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
 
-    service = Service(ChromeDriverManager().install())
+    # Auto detect OS
+    os_name = platform.system()
+    if os_name == "Windows":
+        driver_path = ChromeDriverManager().install()
+    elif os_name == "Linux":
+        driver_path = ChromeDriverManager(chrome_type="chromium").install()
+    else:
+        driver_path = ChromeDriverManager().install()
+
+    service = Service(driver_path)
     driver = webdriver.Chrome(service=service, options=options)
     return driver
-
 
 # =======================
 # Sentiment Analysis
@@ -168,7 +176,6 @@ def save_reviews_to_supabase(reviews, source):
 # =======================
 def get_gmaps_reviews_selenium(place_url, max_reviews=50):
     driver = get_chrome_driver(headless=True)
-
     driver.get(place_url)
     time.sleep(5)
 
