@@ -4,15 +4,15 @@ import re
 import time
 import random
 from datetime import datetime
-from dotenv import load_dotenv
+import streamlit as st
 from supabase import create_client, Client
 import dateparser
 
-# Selenium untuk GMaps pakai Edge
+# Selenium untuk GMaps pakai Crome
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.edge.service import Service as EdgeService
-from selenium.webdriver.edge.options import Options as EdgeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
@@ -29,20 +29,13 @@ except ImportError:
     playstore_reviews = None
     print("⚠️ Module google_play_scraper belum terinstall, Play Store scraping nonaktif.")
 
-# =======================
-# Load environment variables
-# =======================
-load_dotenv()
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-EDGE_DRIVER_PATH = r"C:\Users\resta\OneDrive\Desktop\KULIAH\MAGANG\PROJEK ANALISI SENTIMEN\edgedriver_win64\msedgedriver.exe"
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise EnvironmentError("Pastikan SUPABASE_URL dan SUPABASE_KEY di .env sudah diisi")
-
+# Supabase client pakai Streamlit Secrets
+SUPABASE_URL = st.secrets["SUPABASE"]["URL"]
+SUPABASE_KEY = st.secrets["SUPABASE"]["KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+CHROME_DRIVER_PATH = r"C:\Users\resta\OneDrive\Desktop\KULIAH\MAGANG\PROJEK ANALISI SENTIMEN\chromedriver-win64\chromedriver-win64\chromedriver.exe"
 
 # =======================
 # Sentiment Analysis
@@ -153,13 +146,13 @@ def save_reviews_to_supabase(reviews, source):
 # GMaps Selenium Scraper
 # =======================
 def get_gmaps_reviews_selenium(place_url, max_reviews=50):
-    options = EdgeOptions()
+    options = ChromeOptions()
     options.use_chromium = True
     options.add_argument(f"user-agent={USER_AGENT}")
-    options.add_argument("--headless")  # uncomment kalau mau jalan tanpa buka browser
+    options.add_argument("--headless")  # jalan tanpa buka browser
 
-    service = EdgeService(executable_path=EDGE_DRIVER_PATH)
-    driver = webdriver.Edge(service=service, options=options)
+    service = ChromeService(executable_path=CHROME_DRIVER_PATH)  
+    driver = webdriver.Chrome(service=service, options=options)  
 
     driver.get(place_url)
     time.sleep(5)

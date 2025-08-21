@@ -1,12 +1,9 @@
 # app.py
-import os
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
-from wordcloud import WordCloud
-from dotenv import load_dotenv
+from wordcloud import WordCloud, STOPWORDS
 from streamlit_option_menu import option_menu
-from wordcloud import STOPWORDS
 import dateparser
 
 import utils  # utils.py terbaru dengan scraper dan sentiment
@@ -15,7 +12,6 @@ import utils  # utils.py terbaru dengan scraper dan sentiment
 # Page config
 # -------------------------
 st.set_page_config(page_title="Analisis Sentimen Review", page_icon="📊", layout="wide")
-load_dotenv()
 
 PRIMARY = "#20B2AA"
 BG = "#f5f7fa"
@@ -56,12 +52,6 @@ st.markdown(
 supabase = utils.supabase
 
 # -------------------------
-# Defaults dari .env
-# -------------------------
-DEFAULT_GMAPS_URL = os.getenv("GMAPS_URL", "")
-DEFAULT_PLAY_PACKAGE = os.getenv("PLAYSTORE_PACKAGE", "")
-
-# -------------------------
 # Helpers
 # -------------------------
 @st.cache_data(ttl=300)
@@ -72,7 +62,6 @@ def load_comments():
         if not data:
             return pd.DataFrame()
         df = pd.DataFrame(data)
-        # Parse created_at untuk Play Store + GMaps
         if "created_at" in df.columns:
             df["created_at"] = df["created_at"].apply(lambda x: dateparser.parse(str(x)) if pd.notnull(x) else pd.NaT)
         else:
@@ -90,22 +79,19 @@ def generate_wordcloud(text_series, max_words=150):
     text = " ".join(text_series.dropna().astype(str).values)
     if not text.strip():
         return None
-    # Stopwords default + khusus bahasa Indonesia
-    stopwords = set(STOPWORDS)
-    custom_stopwords = {"dan", "nya", "di", "yang", "untuk", "ini", "ke", "dari", "pada", "dengan", "juga"}
-    stopwords.update(custom_stopwords)
-    
-    wc = WordCloud(
-        width=900,
-        height=400,
-        background_color="white",
-        max_words=max_words,
-        stopwords=stopwords
-    ).generate(text)
+    stopwords_set = set(STOPWORDS)
+    stopwords_set.update({"dan", "nya", "di", "yang", "untuk", "ini", "ke", "dari", "pada", "dengan", "juga"})
+    wc = WordCloud(width=900, height=400, background_color="white", max_words=max_words, stopwords=stopwords_set).generate(text)
     return wc
 
 def clear_cache():
     load_comments.clear()
+
+# -------------------------
+# Default values untuk Crawl
+# -------------------------
+DEFAULT_GMAPS_URL = ""
+DEFAULT_PLAY_PACKAGE = ""
 
 # -------------------------
 # Top navigation
@@ -157,24 +143,10 @@ elif selected == "Crawl Data":
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.header("Crawl Data Review")
 
-    source = st.radio(
-        "Pilih sumber review:",
-        ["Google Maps", "Google Play Store", "Keduanya"],
-        index=0,
-        horizontal=True
-    )
+    source = st.radio("Pilih sumber review:", ["Google Maps", "Google Play Store", "Keduanya"], index=0, horizontal=True)
 
-    gmaps_url = st.text_input(
-        "Google Maps Place URL (support place_id URL)",
-        value=DEFAULT_GMAPS_URL,
-        placeholder="https://www.google.com/maps/place/?q=place_id:XXXX"
-    ) if source in ["Google Maps", "Keduanya"] else ""
-
-    app_pkg = st.text_input(
-        "Play Store Package Name",
-        value=DEFAULT_PLAY_PACKAGE,
-        placeholder="com.example.app"
-    ) if source in ["Google Play Store", "Keduanya"] else ""
+    gmaps_url = st.text_input("Google Maps Place URL (support place_id URL)", value=DEFAULT_GMAPS_URL, placeholder="https://www.google.com/maps/place/?q=place_id:XXXX") if source in ["Google Maps", "Keduanya"] else ""
+    app_pkg = st.text_input("Play Store Package Name", value=DEFAULT_PLAY_PACKAGE, placeholder="com.example.app") if source in ["Google Play Store", "Keduanya"] else ""
 
     run_btn = st.button("🚀 Mulai Crawling & Analisis", type="primary", use_container_width=True)
 
@@ -206,17 +178,11 @@ elif selected == "Analisis":
     if df.empty:
         st.info("Belum ada data. Silakan lakukan Crawling Data.")
     else:
-        # Filter per sumber
-        sumber_filter = st.selectbox(
-            "Pilih Sumber",
-            options=["Semua"] + sorted(df["source"].dropna().unique().tolist()),
-            index=0
-        )
+        sumber_filter = st.selectbox("Pilih Sumber", options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), index=0)
         df_filtered = df.copy()
         if sumber_filter != "Semua":
             df_filtered = df_filtered[df_filtered["source"] == sumber_filter]
 
-        # Ringkasan sentimen
         total = len(df_filtered)
         pos = int((df_filtered["sentimen_label"] == "positif").sum())
         neg = int((df_filtered["sentimen_label"] == "negatif").sum())
@@ -234,7 +200,6 @@ elif selected == "Analisis":
             height=400,
             use_container_width=True
         )
-
     st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------
@@ -248,23 +213,14 @@ elif selected == "Visualisasi":
     if df.empty:
         st.info("Belum ada data untuk divisualisasikan.")
     else:
-        # Filter per sumber
-        sumber_filter = st.selectbox(
-            "Pilih Sumber",
-            options=["Semua"] + sorted(df["source"].dropna().unique().tolist()),
-            index=0
-        )
+        sumber_filter = st.selectbox("Pilih Sumber", options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), index=0)
         df_filtered = df.copy()
         if sumber_filter != "Semua":
             df_filtered = df_filtered[df_filtered["source"] == sumber_filter]
 
-        # Normalisasi label
         df_filtered["sentimen_label"] = df_filtered["sentimen_label"].astype(str).str.strip().str.lower()
-
-        # ---- Visualisasi berdampingan ----
         col1, col2 = st.columns(2)
 
-        # Pie chart
         with col1:
             st.subheader("Persentase Sentimen")
             overall = df_filtered["sentimen_label"].value_counts()
@@ -278,7 +234,6 @@ elif selected == "Visualisasi":
             else:
                 st.info("Tidak ada data untuk pie chart.")
 
-        # WordCloud
         with col2:
             st.subheader("WordCloud (Komentar)")
             wc = generate_wordcloud(df_filtered["comment_text"])
@@ -290,36 +245,23 @@ elif selected == "Visualisasi":
             else:
                 st.info("Tidak ada teks untuk WordCloud.")
 
-        # Tren komentar per bulan (full width)
         st.subheader("Tren Komentar per Bulan")
         df_trend = df_filtered.dropna(subset=["created_at"]).copy()
         if not df_trend.empty:
-            # Group per bulan
             df_trend["month"] = df_trend["created_at"].dt.to_period("M").dt.to_timestamp()
             trend = df_trend.groupby("month").size().reset_index(name="count")
             if not trend.empty:
                 fig3, ax3 = plt.subplots(figsize=(12,4))
-                ax3.plot(
-                    trend["month"], 
-                    trend["count"], 
-                    marker='o', 
-                    markersize=12,      # titik lebih besar
-                    linestyle='-', 
-                    linewidth=2,         # garis tebal
-                    color="#20B2AA"      # sesuai tema
-                )
+                ax3.plot(trend["month"], trend["count"], marker='o', markersize=12, linestyle='-', linewidth=2, color="#20B2AA")
                 ax3.set_xlabel("Bulan")
                 ax3.set_ylabel("Jumlah Komentar")
                 ax3.grid(alpha=0.3)
-                ax3.set_ylim(0, max(trend["count"])*1.4)  # beri margin atas
-                # Tambahkan label angka di atas tiap titik
+                ax3.set_ylim(0, max(trend["count"])*1.4)
                 for x, y in zip(trend["month"], trend["count"]):
                     ax3.text(x, y + 0.1, str(y), ha='center', va='bottom', fontsize=10)
                 st.pyplot(fig3, use_container_width=True)
         else:
             st.info("Tidak ada data untuk tren komentar.")
-
-
 
 # -------------------------
 # Tentang
