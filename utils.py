@@ -7,6 +7,7 @@ from datetime import datetime
 import streamlit as st
 from supabase import create_client, Client
 import dateparser
+import platform
 
 # Selenium untuk GMaps pakai Chrome
 from selenium import webdriver
@@ -39,6 +40,27 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
 CHROME_DRIVER_PATH = r"C:\Users\resta\OneDrive\Desktop\KULIAH\MAGANG\PROJEK ANALISI SENTIMEN\chromedriver-win64\chromedriver.exe"
+
+# =======================
+# Chrome Driver Utility
+# =======================
+def get_chrome_driver(headless=True):
+    options = Options()
+    options.add_argument(f"user-agent={USER_AGENT}")
+    if headless:
+        options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+
+    if platform.system() == "Windows":
+        service = Service(CHROME_DRIVER_PATH)
+    else:
+        service = Service("/usr/bin/chromedriver")
+
+    driver = webdriver.Chrome(service=service, options=options)
+    return driver
 
 # =======================
 # Sentiment Analysis
@@ -149,18 +171,8 @@ def save_reviews_to_supabase(reviews, source):
 # GMaps Selenium Scraper
 # =======================
 def get_gmaps_reviews_selenium(place_url, max_reviews=50):
-    options = Options()
-    options.add_argument(f"user-agent={USER_AGENT}")
-    options.add_argument("--headless=new")           # headless modern, lebih stabil
-    options.add_argument("--no-sandbox")             # untuk Linux container
-    options.add_argument("--disable-dev-shm-usage")  # untuk container dengan memory terbatas
-    options.add_argument("--disable-gpu")            # optional, aman untuk headless
-    options.add_argument("--window-size=1920,1080")  # agar layout stabil
-
-    # Auto-download driver sesuai OS & versi Chrome
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
-
+    driver = get_chrome_driver(headless=True) 
+    
     driver.get(place_url)
     time.sleep(5)
 
