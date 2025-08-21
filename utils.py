@@ -219,10 +219,12 @@ def get_gmaps_reviews_selenium(place_url, max_reviews=50):
                 rating = None
                 try:
                     rating_elem = elem.find_element(By.CSS_SELECTOR, 'span.kvMYJc[role="img"]')
-                    rating_text = rating_elem.get_attribute("aria-label")  # "5 bintang"
-                    rating = int(re.search(r'\d+', rating_text).group())  # ambil angka pertama yang ketemu
-                except:
-                    pass
+                    rating_text = rating_elem.get_attribute("aria-label") or ""  # jika None jadi string kosong
+                    match = re.search(r'\d+', rating_text)
+                    if match:
+                        rating = int(match.group())
+                except Exception as e:
+                    print(f"⚠️ Error parsing rating: {e}")
 
                 # Tanggal review
                 created_at = None
