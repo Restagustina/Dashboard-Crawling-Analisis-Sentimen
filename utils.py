@@ -30,8 +30,8 @@ except ImportError:
     print("⚠️ Module google_play_scraper belum terinstall, Play Store scraping nonaktif.")
 
 # Supabase client pakai Streamlit Secrets
-SUPABASE_URL = st.secrets["SUPABASE"]["URL"]
-SUPABASE_KEY = st.secrets["SUPABASE"]["KEY"]
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
