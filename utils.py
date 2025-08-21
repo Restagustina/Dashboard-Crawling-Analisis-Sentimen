@@ -8,13 +8,16 @@ import streamlit as st
 from supabase import create_client, Client
 import dateparser
 
-# Selenium untuk GMaps pakai Crome
+# Selenium untuk GMaps pakai Chrome
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
+# Driver manager untuk auto-download ChromeDriver
+from webdriver_manager.chrome import ChromeDriverManager
 
 # Sentiment
 import nltk
@@ -146,13 +149,13 @@ def save_reviews_to_supabase(reviews, source):
 # GMaps Selenium Scraper
 # =======================
 def get_gmaps_reviews_selenium(place_url, max_reviews=50):
-    options = ChromeOptions()
+    options = Options()
     options.use_chromium = True
     options.add_argument(f"user-agent={USER_AGENT}")
     options.add_argument("--headless")  # jalan tanpa buka browser
 
-    service = ChromeService(executable_path=CHROME_DRIVER_PATH)  
-    driver = webdriver.Chrome(service=service, options=options)  
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options) 
 
     driver.get(place_url)
     time.sleep(5)
