@@ -150,12 +150,16 @@ def save_reviews_to_supabase(reviews, source):
 # =======================
 def get_gmaps_reviews_selenium(place_url, max_reviews=50):
     options = Options()
-    options.use_chromium = True
     options.add_argument(f"user-agent={USER_AGENT}")
-    options.add_argument("--headless")  # jalan tanpa buka browser
+    options.add_argument("--headless=new")           # headless modern, lebih stabil
+    options.add_argument("--no-sandbox")             # untuk Linux container
+    options.add_argument("--disable-dev-shm-usage")  # untuk container dengan memory terbatas
+    options.add_argument("--disable-gpu")            # optional, aman untuk headless
+    options.add_argument("--window-size=1920,1080")  # agar layout stabil
 
+    # Auto-download driver sesuai OS & versi Chrome
     service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options) 
+    driver = webdriver.Chrome(service=service, options=options)
 
     driver.get(place_url)
     time.sleep(5)
