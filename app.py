@@ -90,8 +90,8 @@ def clear_cache():
 # -------------------------
 # Default values untuk Crawl
 # -------------------------
-DEFAULT_GMAPS_URL = ""
-DEFAULT_PLAY_PACKAGE = ""
+DEFAULT_GMAPS_URL = "https://www.google.com/maps/place/Samsat+UPTB+Palembang+1/@-2.9870757,104.7412692,17z/data=!4m6!3m5!1s0x2e3b75e6afb58fa1:0xb83c1a47293793d7!8m2!3d-2.9870757!4d104.7438441!16s%2Fg%2F11c6rj50mr?entry=ttu&g_ep=EgoyMDI1MDgxMC4wIKXMDSoASAFQAw%3D%3D"
+DEFAULT_PLAY_PACKAGE = "app.signal.id"
 
 # -------------------------
 # Top navigation
@@ -145,25 +145,39 @@ elif selected == "Crawl Data":
 
     source = st.radio("Pilih sumber review:", ["Google Maps", "Google Play Store", "Keduanya"], index=0, horizontal=True)
 
-    gmaps_url = st.text_input("Google Maps Place URL (support place_id URL)", value=DEFAULT_GMAPS_URL, placeholder="https://www.google.com/maps/place/?q=place_id:XXXX") if source in ["Google Maps", "Keduanya"] else ""
-    app_pkg = st.text_input("Play Store Package Name", value=DEFAULT_PLAY_PACKAGE, placeholder="com.example.app") if source in ["Google Play Store", "Keduanya"] else ""
+    # Text input untuk URL / Package
+    gmaps_url = st.text_input(
+        "Google Maps Place URL (support place_id URL)",
+        value=DEFAULT_GMAPS_URL if source in ["Google Maps", "Keduanya"] else "",
+        placeholder="https://www.google.com/maps/place/?q=place_id:XXXX"
+    ) if source in ["Google Maps", "Keduanya"] else ""
+
+    app_pkg = st.text_input(
+        "Play Store Package Name",
+        value=DEFAULT_PLAY_PACKAGE if source in ["Google Play Store", "Keduanya"] else "",
+        placeholder="com.example.app"
+    ) if source in ["Google Play Store", "Keduanya"] else ""
 
     run_btn = st.button("🚀 Mulai Crawling & Analisis", type="primary", use_container_width=True)
 
     if run_btn:
-        with st.spinner("Menjalankan crawling dan analisis..."):
-            try:
-                gmaps_param = gmaps_url if source in ["Google Maps", "Keduanya"] and gmaps_url.strip() else None
-                play_param = app_pkg if source in ["Google Play Store", "Keduanya"] and app_pkg.strip() else None
+            with st.spinner("Menjalankan crawling dan analisis..."):
+                try:
+                    gmaps_param = gmaps_url.strip() if gmaps_url and source in ["Google Maps", "Keduanya"] else None
+                    play_param = app_pkg.strip() if app_pkg and source in ["Google Play Store", "Keduanya"] else None
 
-                if not gmaps_param and not play_param:
-                    st.warning("Isi minimal salah satu: Google Maps URL atau Play Store Package.")
-                else:
-                    utils.run_crawling_and_analysis(gmaps_url=gmaps_param, app_package_name=play_param)
-                    clear_cache()
-                    st.success("Crawling & analisis selesai! Silakan buka tab lain untuk melihat hasil.")
-            except Exception as e:
-                st.error(f"Gagal: {e}")
+                    if not gmaps_param and not play_param:
+                        st.warning("Isi minimal salah satu: Google Maps URL atau Play Store Package.")
+                    else:
+                        # Panggil fungsi crawling & analisis di utils
+                        utils.run_crawling_and_analysis(
+                            gmaps_url=gmaps_param, 
+                            app_package_name=play_param
+                        )
+                        clear_cache()
+                        st.success("Crawling & analisis selesai! Silakan buka tab lain untuk melihat hasil.")
+                except Exception as e:
+                    st.error(f"Gagal: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
