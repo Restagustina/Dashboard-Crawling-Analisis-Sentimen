@@ -39,7 +39,6 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-CHROME_DRIVER_PATH = r"C:\Users\resta\OneDrive\Desktop\KULIAH\MAGANG\PROJEK ANALISI SENTIMEN\chromedriver-win64\chromedriver.exe"
 
 # =======================
 # Chrome Driver Utility
