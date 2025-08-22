@@ -166,12 +166,12 @@ def save_reviews_to_supabase(reviews, source):
 # =======================
 # GMaps Selenium Scraper
 # =======================
-def get_gmaps_reviews_selenium(place_url, max_reviews=50):
+def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
     driver = get_chrome_driver(headless=True)
     driver.get(place_url)
     time.sleep(5)
 
-    # Klik tombol "Ulasan" (Chrome terbaru)
+    # Klik tab "Ulasan"
     try:
         ulasan_tab = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
@@ -209,53 +209,55 @@ def get_gmaps_reviews_selenium(place_url, max_reviews=50):
         print(f"📌 Jumlah review terkumpul: {len(reviews)}")
 
         for elem in reviews[len(review_data):]:
+            review_info = {"username": None, "comment_text": None, "rating": None, "created_at": None}
             try:
                 # Nama user
-                user_name = ""
                 try:
-                    user_name = elem.find_element(By.CSS_SELECTOR, 'div.d4r55').text
-                except:
-                    pass
+                    review_info["username"] = elem.find_element(By.CSS_SELECTOR, 'div.d4r55').text
+                except Exception as e:
+                    print(f"⚠️ Error username: {e}")
 
                 # Komentar
-                comment = ""
                 try:
-                    comment = elem.find_element(By.CSS_SELECTOR, 'span.wiI7pd').text
-                except:
-                    pass
+                    review_info["comment_text"] = elem.find_element(By.CSS_SELECTOR, 'span.wi7pDd').text
+                    # tombol "Lihat lainnya"
+                    try:
+                        see_more = elem.find_element(By.CSS_SELECTOR, 'button.w8nwRe')
+                        if see_more.get_attribute("aria-expanded") == "false":
+                            see_more.click()
+                            time.sleep(1)
+                            review_info["comment_text"] = elem.find_element(By.CSS_SELECTOR, 'div.MyfNed').text
+                    except:
+                        pass
+                except Exception as e:
+                    print(f"⚠️ Error komentar: {e}")
 
                 # Rating
-                rating = None
                 try:
                     rating_text = elem.find_element(By.CSS_SELECTOR, 'span.HYYyc').get_attribute('aria-label') or ""
                     match = re.search(r'\d+', rating_text)
-                    if match:
-                        rating = int(match.group())
+                    review_info["rating"] = int(match.group()) if match else None
                 except Exception as e:
-                    print(f"⚠️ Error parsing rating: {e}")
+                    print(f"⚠️ Error rating: {e}")
 
                 # Tanggal review
-                created_at = None
                 try:
                     date_text = elem.find_element(By.CSS_SELECTOR, 'span.rsqaWe').text
                     created_dt = dateparser.parse(date_text, languages=['id'])
-                    created_at = created_dt.isoformat() if created_dt else datetime.now().isoformat()
-                except:
-                    created_at = datetime.now().isoformat()
+                    review_info["created_at"] = created_dt.isoformat() if created_dt else datetime.now().isoformat()
+                except Exception as e:
+                    print(f"⚠️ Error tanggal: {e}")
+                    review_info["created_at"] = datetime.now().isoformat()
 
-                # Simpan data review
-                review_data.append({
-                    "review_id": f"gmaps-{len(review_data)+1}-{int(time.time())}",
-                    "username": user_name,
-                    "comment_text": comment,
-                    "rating": rating,
-                    "created_at": created_at
-                })
+                # Simpan data
+                review_info["review_id"] = f"gmaps-{len(review_data)+1}-{int(time.time())}"
+                review_data.append(review_info)
 
                 if len(review_data) >= max_reviews:
                     break
+
             except Exception as e:
-                print("⚠️ Error parsing review:", e)
+                print(f"❌ Error parsing review element: {e}")
 
     driver.quit()
     return review_data
