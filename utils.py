@@ -171,11 +171,11 @@ def get_gmaps_reviews_selenium(place_url, max_reviews=50):
     driver.get(place_url)
     time.sleep(5)
 
-    # Klik tombol "Ulasan"
+    # Klik tombol "Ulasan" (Chrome terbaru)
     try:
         ulasan_tab = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
-                (By.XPATH, '//button[contains(., "Ulasan") or contains(@aria-label, "ulasan")]')
+                (By.XPATH, '//button[@role="tab" and contains(@aria-label,"Ulasan")]')
             )
         )
         ulasan_tab.click()
@@ -187,9 +187,14 @@ def get_gmaps_reviews_selenium(place_url, max_reviews=50):
 
     # Scroll untuk load semua review
     review_data = []
-    scrollable_div = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, 'div.m6QErb.DxyBCb.kA9KIf.dS8AEf'))
-    )
+    try:
+        scrollable_div = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'div[role="region"]'))
+        )
+    except Exception as e:
+        print("⚠️ Tidak menemukan panel review:", e)
+        driver.quit()
+        return []
 
     last_height = 0
     while len(review_data) < max_reviews:
@@ -200,15 +205,19 @@ def get_gmaps_reviews_selenium(place_url, max_reviews=50):
             break
         last_height = new_height
 
-        reviews = driver.find_elements(By.CSS_SELECTOR, 'div.jftiEf.fontBodyMedium')
+        reviews = scrollable_div.find_elements(By.XPATH, './/div[@role="article"]')
         print(f"📌 Jumlah review terkumpul: {len(reviews)}")
 
         for elem in reviews[len(review_data):]:
             try:
                 # Nama user
-                user_name = elem.find_element(By.CSS_SELECTOR, 'div.d4r55').text
+                user_name = ""
+                try:
+                    user_name = elem.find_element(By.CSS_SELECTOR, 'div.d4r55').text
+                except:
+                    pass
 
-                # Isi komentar
+                # Komentar
                 comment = ""
                 try:
                     comment = elem.find_element(By.CSS_SELECTOR, 'span.wiI7pd').text
@@ -218,8 +227,7 @@ def get_gmaps_reviews_selenium(place_url, max_reviews=50):
                 # Rating
                 rating = None
                 try:
-                    rating_elem = elem.find_element(By.CSS_SELECTOR, 'span.kvMYJc[role="img"]')
-                    rating_text = rating_elem.get_attribute("aria-label") or ""  # jika None jadi string kosong
+                    rating_text = elem.find_element(By.CSS_SELECTOR, 'span.HYYyc').get_attribute('aria-label') or ""
                     match = re.search(r'\d+', rating_text)
                     if match:
                         rating = int(match.group())
@@ -234,10 +242,10 @@ def get_gmaps_reviews_selenium(place_url, max_reviews=50):
                     created_at = created_dt.isoformat() if created_dt else datetime.now().isoformat()
                 except:
                     created_at = datetime.now().isoformat()
-                    
+
                 # Simpan data review
                 review_data.append({
-                    "review_id": f"gmaps-{len(review_data)+1}-{int(time.time())}",  # generate id unik
+                    "review_id": f"gmaps-{len(review_data)+1}-{int(time.time())}",
                     "username": user_name,
                     "comment_text": comment,
                     "rating": rating,
