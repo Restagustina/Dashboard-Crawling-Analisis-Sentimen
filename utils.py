@@ -318,7 +318,7 @@ def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews
     # -------------------------
     if gmaps_url:  # hanya jalan kalau URL dikasih
         print("📌 Crawling GMaps...")
-        gmaps_reviews = get_gmaps_reviews_selenium(gmaps_url, max_reviews=max_reviews)
+        gmaps_reviews = get_gmaps_reviews_selenium_debug(gmaps_url, max_reviews=max_reviews)
         print(f"DEBUG: Jumlah review GMaps yang ditemukan = {len(gmaps_reviews)}")
         if gmaps_reviews:
             save_reviews_to_supabase(gmaps_reviews, "gmaps")
