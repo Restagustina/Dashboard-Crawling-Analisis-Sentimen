@@ -27,7 +27,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GMAPS_URL: ${{ secrets.GMAPS_URL }}
-          PLAYSTORE_PACKAGE: ${{ secrets.PLAYSTORE_PACKAGE }}
           USER_AGENT: ${{ secrets.USER_AGENT }}
         run: |
           python gmaps_autocraw.py
