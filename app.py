@@ -5,9 +5,13 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
 from streamlit_option_menu import option_menu
 import dateparser
+from crawling import run_crawling_and_analysis
+from supabase import create_client, Client
+from datetime import datetime, timedelta
 
-import utils  # utils.py terbaru dengan scraper dan sentiment
-
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # -------------------------
 # Page config
 # -------------------------
@@ -45,11 +49,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-# -------------------------
-# Supabase client dari utils
-# -------------------------
-supabase = utils.supabase
 
 # -------------------------
 # Helpers
@@ -145,13 +144,14 @@ elif selected == "Crawl Data":
 
     source = st.radio("Pilih sumber review:", ["Google Maps", "Google Play Store", "Keduanya"], index=0, horizontal=True)
 
-    # Text input untuk URL / Package
+    # Input GMaps URL (hanya untuk validasi/tampilan, bukan crawling)
     gmaps_url = st.text_input(
         "Google Maps Place URL (support place_id URL)",
         value=DEFAULT_GMAPS_URL if source in ["Google Maps", "Keduanya"] else "",
         placeholder="https://www.google.com/maps/place/?q=place_id:XXXX"
     ) if source in ["Google Maps", "Keduanya"] else ""
 
+    # Input Play Store Package Name
     app_pkg = st.text_input(
         "Play Store Package Name",
         value=DEFAULT_PLAY_PACKAGE if source in ["Google Play Store", "Keduanya"] else "",
@@ -161,23 +161,45 @@ elif selected == "Crawl Data":
     run_btn = st.button("🚀 Mulai Crawling & Analisis", type="primary", use_container_width=True)
 
     if run_btn:
-            with st.spinner("Menjalankan crawling dan analisis..."):
-                try:
-                    gmaps_param = gmaps_url.strip() if gmaps_url and source in ["Google Maps", "Keduanya"] else None
-                    play_param = app_pkg.strip() if app_pkg and source in ["Google Play Store", "Keduanya"] else None
+        with st.spinner("Menjalankan crawling dan analisis..."):
+            try:
+                gmaps_param = gmaps_url.strip() if gmaps_url and source in ["Google Maps", "Keduanya"] else None
+                play_param = app_pkg.strip() if app_pkg and source in ["Google Play Store", "Keduanya"] else None
 
-                    if not gmaps_param and not play_param:
-                        st.warning("Isi minimal salah satu: Google Maps URL atau Play Store Package.")
-                    else:
-                        # Panggil fungsi crawling & analisis di utils
-                        utils.run_crawling_and_analysis(
-                            gmaps_url=gmaps_param, 
+                if not gmaps_param and not play_param:
+                    st.warning("Isi minimal salah satu: Google Maps URL atau Play Store Package.")
+                else:
+                    # ✅ GMaps tidak dicrawling langsung
+                    if play_param:
+                        run_crawling_and_analysis(
+                            gmaps_url=None,  # GMaps di-skip
                             app_package_name=play_param
                         )
                         clear_cache()
-                        st.success("Crawling & analisis selesai! Silakan buka tab lain untuk melihat hasil.")
-                except Exception as e:
-                    st.error(f"Gagal: {e}")
+                        st.success("Crawling Play Store selesai! Silakan buka tab lain untuk melihat hasil.")
+                    
+                    if gmaps_param:
+                        # Ambil timestamp crawling terakhir dari Supabase
+                        try:
+                            res = supabase.table("crawl_logs").select("timestamp").eq("source", "gmaps").order("timestamp", desc=True).limit(1).execute()
+                            last_ts = res.data[0]["timestamp"] if res.data else None
+
+                            if last_ts:
+                                last_dt = datetime.fromisoformat(last_ts)
+                                next_dt = last_dt + timedelta(days=3)
+                                st.info(f"✅ Data Google Maps terakhir diperbarui: **{last_dt.strftime('%d %b %Y %H:%M')}**")
+                                st.caption(f"⏳ Jadwal update berikutnya: sekitar **{next_dt.strftime('%d %b %Y')}** oleh sistem backend.")
+                            else:
+                                st.info("✅ Data Google Maps akan diperbarui otomatis oleh sistem backend setiap 3 hari.")
+                                st.caption("⏳ Belum ada data crawling sebelumnya.")
+                            
+                            st.success("Silakan buka tab 'Home' atau 'Analisis' untuk melihat hasil dari Supabase.")
+                        except Exception as e:
+                            st.warning("Gagal mengambil info update GMaps dari Supabase.")
+                            st.error(f"Error: {e}")
+
+            except Exception as e:
+                st.error(f"Gagal menjalankan crawling: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
