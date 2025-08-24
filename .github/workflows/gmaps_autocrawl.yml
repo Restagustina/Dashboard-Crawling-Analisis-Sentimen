@@ -1,6 +1,9 @@
 name: GMaps AutoCrawl
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     - cron: '0 3 */3 * *'  # Setiap 3 hari jam 03:00 UTC
   workflow_dispatch:       # Bisa dijalankan manual dari GitHub UI
