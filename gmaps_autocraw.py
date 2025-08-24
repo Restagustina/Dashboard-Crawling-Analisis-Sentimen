@@ -2,6 +2,7 @@
 import time
 import re
 import os
+import threading
 from datetime import datetime
 from crawling import get_gmaps_reviews_selenium_debug
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
@@ -31,6 +32,13 @@ MAX_REVIEWS = 20
 # Ekstrak place_id dari URL jika tersedia
 match = re.search(r"place_id:([^&]+)", GMAPS_URL)
 PLACE_ID = match.group(1) if match else "gmaps_indralaya"
+
+def heartbeat_logger(interval=30):
+    def loop():
+        while True:
+            print(f"[HEARTBEAT] GMaps crawler aktif - {datetime.now().isoformat()}")
+            time.sleep(interval)
+    threading.Thread(target=loop, daemon=True).start()
 
 def run_job():
     start_time = time.time()
