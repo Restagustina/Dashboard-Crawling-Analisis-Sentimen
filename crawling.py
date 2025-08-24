@@ -1,7 +1,9 @@
+# crawling.py
 import os
 import time
 import dateparser
 import re
+import signal
 import random
 from datetime import datetime
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
@@ -29,6 +31,8 @@ def get_chrome_driver(headless=True):
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--blink-settings=imagesEnabled=false")
     if headless:
         options.add_argument("--headless=new")
 
@@ -73,12 +77,18 @@ def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
         return []
 
     last_height = 0
-    while len(review_data) < max_reviews:
+    scroll_attempts = 0
+    max_scroll_attempts = 5
+    while len(review_data) < max_reviews and scroll_attempts < max_scroll_attempts:
         driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
         time.sleep(2)
         new_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
+
         if new_height == last_height:
-            break
+            scroll_attempts += 1
+            print(f"⚠️ Scroll stuck attempt {scroll_attempts}/{max_scroll_attempts}")
+        else:
+            scroll_attempts = 0  # reset kalau berhasil scroll
         last_height = new_height
 
         reviews = scrollable_div.find_elements(By.XPATH, './/div[@role="article"]')
@@ -128,6 +138,9 @@ def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
                 # Simpan data
                 review_info["review_id"] = f"gmaps-{len(review_data)+1}-{int(time.time())}"
                 review_data.append(review_info)
+                # Log progres setiap 10 review
+                if len(review_data) % 10 == 0:
+                    print(f"📈 Progres crawling: {len(review_data)} review terkumpul...")
 
                 if len(review_data) >= max_reviews:
                     break
@@ -188,13 +201,26 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
 # =======================
 # Main Run
 # =======================
+def timeout_handler(signum, frame):
+    raise TimeoutError("⏱ Crawling GMaps timeout exceeded.")
+
 def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews=10):
     # -------------------------
     # Crawling GMaps
     # -------------------------
-    if gmaps_url:  # hanya jalan kalau URL dikasih
+    if gmaps_url:
         print("📌 Crawling GMaps...")
-        gmaps_reviews = get_gmaps_reviews_selenium_debug(gmaps_url, max_reviews=max_reviews)
+
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(600)  # ⏱ Timeout 10 menit
+
+        try:
+            gmaps_reviews = get_gmaps_reviews_selenium_debug(gmaps_url, max_reviews=max_reviews)
+            signal.alarm(0)  # Matikan alarm kalau sukses
+        except TimeoutError as e:
+            print(f"❌ Timeout: {e}")
+            gmaps_reviews = []
+
         print(f"DEBUG: Jumlah review GMaps yang ditemukan = {len(gmaps_reviews)}")
         if gmaps_reviews:
             save_reviews_to_supabase(gmaps_reviews, "gmaps")
