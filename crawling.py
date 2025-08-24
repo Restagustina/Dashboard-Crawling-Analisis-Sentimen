@@ -49,9 +49,11 @@ def get_chrome_driver(headless=True):
 def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
     driver = get_chrome_driver(headless=True)
     driver.get(place_url)
+    print(f"[DEBUG] Mulai parsing review di URL: {place_url}")
     time.sleep(5)
 
     # Klik tab "Ulasan"
+    print("[DEBUG] Menunggu tombol 'Ulasan'...")
     try:
         ulasan_tab = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
@@ -79,11 +81,14 @@ def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
     last_height = 0
     scroll_attempts = 0
     max_scroll_attempts = 5
+    i = 0
     while len(review_data) < max_reviews and scroll_attempts < max_scroll_attempts:
+        print(f"[DEBUG] Scroll loop iterasi ke-{i}")
+        i += 1
+
         driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
         time.sleep(2)
         new_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
-
         if new_height == last_height:
             scroll_attempts += 1
             print(f"⚠️ Scroll stuck attempt {scroll_attempts}/{max_scroll_attempts}")

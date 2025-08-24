@@ -29,9 +29,13 @@ supabase = get_supabase_client()
 # Konfigurasi crawling
 MAX_REVIEWS = 20
 
-# Ekstrak place_id dari URL jika tersedia
-match = re.search(r"place_id:([^&]+)", GMAPS_URL)
-PLACE_ID = match.group(1) if match else "gmaps_indralaya"
+def extract_place_id_or_slug(url):
+    match = re.search(r"place_id:([^&]+)", url)
+    if match:
+        return match.group(1)
+    slug_match = re.search(r"/maps/place/([^/@]+)", url)
+    slug = slug_match.group(1).replace("+", "_") if slug_match else "gmaps_fallback"
+    return f"{slug.lower()}_{int(time.time())}"
 
 def heartbeat_logger(interval=30):
     def loop():
@@ -41,6 +45,10 @@ def heartbeat_logger(interval=30):
     threading.Thread(target=loop, daemon=True).start()
 
 def run_job():
+    PLACE_ID = extract_place_id_or_slug(GMAPS_URL)
+    print(f"[INFO] Target crawling: {GMAPS_URL}")
+    print(f"[INFO] place_id/log key: {PLACE_ID}")
+    heartbeat_logger()
     start_time = time.time()
     print(f"⏰ [{datetime.now().isoformat()}] Mulai crawling GMaps...")
 
