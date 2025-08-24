@@ -10,3 +10,4 @@ nltk==3.9.1
 Sastrawi==1.0.1
 transformers==4.55.0
 torch==2.8.0
+apscheduler==3.10.4
