@@ -6,7 +6,7 @@ from wordcloud import WordCloud, STOPWORDS
 from streamlit_option_menu import option_menu
 import dateparser
 from crawling import run_crawling_and_analysis
-from supabase import create_client, Client
+from supabase_utils import create_client, Client
 from datetime import datetime, timedelta
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]

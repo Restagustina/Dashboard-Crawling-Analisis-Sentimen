@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from crawling import get_gmaps_reviews_selenium_debug
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
-from supabase import create_client
+from supabase_utils import create_client
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 # Ambil secrets

@@ -3,7 +3,7 @@ import os
 import re
 from datetime import datetime
 import streamlit as st
-from supabase import create_client, Client
+from supabase_utils import create_client, Client
 
 # Sentiment
 import nltk
