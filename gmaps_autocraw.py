@@ -1,4 +1,5 @@
 import time
+import re
 from datetime import datetime
 from crawling import get_gmaps_reviews_selenium_debug
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
@@ -11,19 +12,22 @@ try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     GMAPS_URL = st.secrets["GMAPS_URL"]
-    PLACE_ID = st.secrets["PLACE_ID_PLAYSTORE"]
 except ImportError:
     import toml
     secrets = toml.load("secrets.toml")
     SUPABASE_URL = secrets["SUPABASE_URL"]
     SUPABASE_KEY = secrets["SUPABASE_KEY"]
     GMAPS_URL = secrets["GMAPS_URL"]
-    PLACE_ID = secrets["PLACE_ID_PLAYSTORE"]
 
 # Setup Supabase client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Konfigurasi crawling
 MAX_REVIEWS = 20
+
+# Ekstrak place_id dari URL jika tersedia
+match = re.search(r"place_id:([^&]+)", GMAPS_URL)
+PLACE_ID = match.group(1) if match else "gmaps_indralaya"
 
 def run_job():
     start_time = time.time()
