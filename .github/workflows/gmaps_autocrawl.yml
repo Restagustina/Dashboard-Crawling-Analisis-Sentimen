@@ -12,6 +12,12 @@ jobs:
   run-crawler:
     runs-on: ubuntu-latest
 
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      GMAPS_URL: ${{ secrets.GMAPS_URL }}
+      USER_AGENT: ${{ secrets.USER_AGENT }}
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -26,10 +32,5 @@ jobs:
           pip install -r requirements-lite.txt
 
       - name: Run GMaps crawler
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          GMAPS_URL: ${{ secrets.GMAPS_URL }}
-          USER_AGENT: ${{ secrets.USER_AGENT }}
         run: |
           python gmaps_autocraw.py
