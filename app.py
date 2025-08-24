@@ -9,7 +9,10 @@ from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 from datetime import datetime, timedelta
 
-supabase = get_supabase_client()
+@st.cache_resource
+def get_client():
+    return get_supabase_client()
+
 # -------------------------
 # Page config
 # -------------------------
@@ -54,6 +57,7 @@ st.markdown(
 @st.cache_data(ttl=300)
 def load_comments():
     try:
+        supabase = get_client()
         resp = supabase.table("comments").select("*").execute()
         data = resp.data or []
         if not data:
@@ -179,6 +183,7 @@ elif selected == "Crawl Data":
                     if gmaps_param:
                         # Ambil timestamp crawling terakhir dari Supabase
                         try:
+                            supabase = get_client()
                             res = supabase.table("crawl_logs").select("timestamp").eq("source", "gmaps").order("timestamp", desc=True).limit(1).execute()
                             last_ts = res.data[0]["timestamp"] if res.data else None
 
