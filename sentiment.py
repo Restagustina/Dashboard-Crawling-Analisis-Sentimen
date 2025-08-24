@@ -1,9 +1,10 @@
-# utils.py
+# sentiment.py
 import os
 import re
 from datetime import datetime
 import streamlit as st
-from supabase_utils import create_client, Client
+from supabase_utils import get_supabase_client
+
 
 # Sentiment
 import nltk
@@ -11,10 +12,8 @@ from nltk.corpus import stopwords
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from transformers import pipeline
 
-# Supabase client pakai Streamlit Secrets
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Setup Supabase client
+supabase = get_supabase_client()
 
 USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
 

@@ -6,12 +6,10 @@ from wordcloud import WordCloud, STOPWORDS
 from streamlit_option_menu import option_menu
 import dateparser
 from crawling import run_crawling_and_analysis
-from supabase_utils import create_client, Client
+from supabase_utils import get_supabase_client
 from datetime import datetime, timedelta
 
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase = get_supabase_client()
 # -------------------------
 # Page config
 # -------------------------

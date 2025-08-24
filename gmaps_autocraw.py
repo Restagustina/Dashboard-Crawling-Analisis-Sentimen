@@ -1,16 +1,15 @@
+# gmaps_autocraw.py
 import time
 import re
 from datetime import datetime
 from crawling import get_gmaps_reviews_selenium_debug
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
-from supabase_utils import create_client
+from supabase_utils import get_supabase_client
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 # Ambil secrets
 try:
     import streamlit as st
-    SUPABASE_URL = st.secrets["SUPABASE_URL"]
-    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     GMAPS_URL = st.secrets["GMAPS_URL"]
 except ImportError:
     import toml
@@ -20,7 +19,7 @@ except ImportError:
     GMAPS_URL = secrets["GMAPS_URL"]
 
 # Setup Supabase client
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase = get_supabase_client()
 
 # Konfigurasi crawling
 MAX_REVIEWS = 20
