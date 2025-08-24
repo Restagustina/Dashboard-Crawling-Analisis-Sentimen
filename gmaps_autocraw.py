@@ -1,22 +1,26 @@
 # gmaps_autocraw.py
 import time
 import re
+import os
 from datetime import datetime
 from crawling import get_gmaps_reviews_selenium_debug
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 from supabase_utils import get_supabase_client
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-# Ambil secrets
+# Ambil secrets dari environment variables atau Streamlit secrets
 try:
     import streamlit as st
-    GMAPS_URL = st.secrets["GMAPS_URL"]
-except ImportError:
-    import toml
-    secrets = toml.load("secrets.toml")
-    SUPABASE_URL = secrets["SUPABASE_URL"]
-    SUPABASE_KEY = secrets["SUPABASE_KEY"]
-    GMAPS_URL = secrets["GMAPS_URL"]
+    SUPABASE_URL = os.environ.get("SUPABASE_URL") or st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or st.secrets["SUPABASE_KEY"]
+    GMAPS_URL = os.environ.get("GMAPS_URL") or st.secrets["GMAPS_URL"]
+except (ImportError, KeyError):
+    SUPABASE_URL = os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+    GMAPS_URL = os.environ.get("GMAPS_URL")
+
+if not all([SUPABASE_URL, SUPABASE_KEY, GMAPS_URL]):
+    raise RuntimeError("Missing one or more required secrets: SUPABASE_URL, SUPABASE_KEY, GMAPS_URL")
 
 # Setup Supabase client
 supabase = get_supabase_client()
