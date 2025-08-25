@@ -28,8 +28,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Remove chromedriver cache
-        run: rm -rf ~/.wdm/drivers/chromedriver
+      - name: Install Google Chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+          install-dependencies: true
+
+      - name: Install ChromeDriver
+        uses: nanasess/setup-chromedriver@v2
 
       - name: Install lightweight dependencies
         run: pip install -r requirements-lite.txt
