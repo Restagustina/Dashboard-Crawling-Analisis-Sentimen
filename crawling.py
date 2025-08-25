@@ -38,8 +38,8 @@ def get_chrome_driver(headless=True):
 
     user_agent = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     options.add_argument(f"user-agent={user_agent}")
-
-    driver_path = ChromeDriverManager().install()
+    chromedriver_version = "139.0.7258.127"
+    driver_path = ChromeDriverManager(version=chromedriver_version).install()
     driver = webdriver.Chrome(service=Service(driver_path), options=options)
     return driver
 
