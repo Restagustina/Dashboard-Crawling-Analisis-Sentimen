@@ -11,3 +11,4 @@ Sastrawi==1.0.1
 transformers==4.55.0
 torch==2.8.0
 apscheduler==3.10.4
+google-play-scraper==1.2.7
