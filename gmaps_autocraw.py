@@ -1,13 +1,11 @@
-# gmaps_autocraw.py
 import time
 import re
 import os
-import threading
 from datetime import datetime
 from crawling import get_gmaps_reviews_selenium_debug
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 from supabase_utils import get_supabase_client
-from apscheduler.schedulers.blocking import BlockingScheduler
+import signal
 
 # Ambil secrets dari environment variables atau Streamlit secrets
 try:
@@ -28,6 +26,7 @@ supabase = get_supabase_client()
 
 # Konfigurasi crawling
 MAX_REVIEWS = 20
+TIMEOUT_SECONDS = 600  # 10 menit
 
 def extract_place_id_or_slug(url):
     match = re.search(r"place_id:([^&]+)", url)
@@ -37,23 +36,21 @@ def extract_place_id_or_slug(url):
     slug = slug_match.group(1).replace("+", "_") if slug_match else "gmaps_fallback"
     return f"{slug.lower()}_{int(time.time())}"
 
-def heartbeat_logger(interval=30):
-    def loop():
-        while True:
-            print(f"[HEARTBEAT] GMaps crawler aktif - {datetime.now().isoformat()}")
-            time.sleep(interval)
-    threading.Thread(target=loop, daemon=True).start()
+# Timeout handler untuk hentikan crawling kalau lewat batas waktu
+def timeout_handler(signum, frame):
+    raise TimeoutError("⏱ Crawling GMaps timeout exceeded.")
 
 def run_job():
     PLACE_ID = extract_place_id_or_slug(GMAPS_URL)
     print(f"[INFO] Target crawling: {GMAPS_URL}")
     print(f"[INFO] place_id/log key: {PLACE_ID}")
-    heartbeat_logger()
     start_time = time.time()
-    print(f"⏰ [{datetime.now().isoformat()}] Mulai crawling GMaps...")
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(TIMEOUT_SECONDS)  # Pasang timer timeout
 
     try:
         reviews = get_gmaps_reviews_selenium_debug(GMAPS_URL, max_reviews=MAX_REVIEWS)
+        signal.alarm(0)  # Matikan alarm jika berhasil selesai
         duration_ms = int((time.time() - start_time) * 1000)
         review_count = len(reviews)
 
@@ -68,6 +65,12 @@ def run_job():
             error_msg = "Tidak ada review ditemukan."
             print("⚠️ Tidak ada review yang berhasil diambil.")
 
+    except TimeoutError as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        status = "error"
+        error_msg = str(e)
+        review_count = None
+        print(f"❌ Timeout: {error_msg}")
     except Exception as e:
         duration_ms = int((time.time() - start_time) * 1000)
         status = "error"
@@ -88,11 +91,5 @@ def run_job():
         "notes": None
     }).execute()
 
-def start_scheduler():
-    scheduler = BlockingScheduler()
-    scheduler.add_job(run_job, 'interval', days=3)
-    print("🕒 Scheduler aktif. Crawling akan dijalankan setiap 3 hari sekali...")
-    scheduler.start()
-
 if __name__ == "__main__":
-    start_scheduler()
+    run_job()

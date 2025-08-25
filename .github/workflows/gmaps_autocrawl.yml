@@ -11,6 +11,7 @@ on:
 jobs:
   run-crawler:
     runs-on: ubuntu-latest
+    timeout-minutes: 30    # Batasi job maksimal 30 menit
 
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
