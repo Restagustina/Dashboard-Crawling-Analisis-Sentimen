@@ -6,12 +6,12 @@ on:
       - main
   schedule:
     - cron: '0 3 */3 * *'  # Setiap 3 hari jam 03:00 UTC
-  workflow_dispatch:       # Bisa dijalankan manual dari GitHub UI
+  workflow_dispatch:
 
 jobs:
   run-crawler:
     runs-on: ubuntu-latest
-    timeout-minutes: 30    # Batasi job maksimal 30 menit
+    timeout-minutes: 30
 
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -28,9 +28,11 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Remove chromedriver cache
+        run: rm -rf ~/.wdm/drivers/chromedriver
+
       - name: Install lightweight dependencies
-        run: |
-          pip install -r requirements-lite.txt
+        run: pip install -r requirements-lite.txt
 
       - name: Run GMaps crawler
         run: |
