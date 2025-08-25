@@ -20,27 +20,30 @@ jobs:
       USER_AGENT: ${{ secrets.USER_AGENT }}
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+    - name: Checkout repo
+      uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
 
-      - name: Install Google Chrome
-        uses: browser-actions/setup-chrome@v2
-        with:
-          chrome-version: stable
-          install-dependencies: true
+    - name: Install Google Chrome
+      uses: browser-actions/setup-chrome@v2
+      with:
+        chrome-version: stable
+        install-dependencies: true
 
-      - name: Install ChromeDriver
-        uses: nanasess/setup-chromedriver@v2
+    - name: Remove chromedriver cache
+      run: rm -rf ~/.wdm/drivers/chromedriver
 
-      - name: Install lightweight dependencies
-        run: pip install -r requirements-lite.txt
+    - name: Install ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
 
-      - name: Run GMaps crawler
-        run: |
-          echo "[INFO] Starting GMaps crawler..."
-          python gmaps_autocraw.py
+    - name: Install lightweight dependencies
+      run: pip install -r requirements-lite.txt
+
+    - name: Run GMaps crawler
+      run: |
+        echo "[INFO] Starting GMaps crawler..."
+        python gmaps_autocraw.py
