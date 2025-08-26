@@ -56,11 +56,11 @@ def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
     try:
         ulasan_tab = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
-                (By.XPATH, "//button[contains(@aria-label, 'ulasan') or contains(@aria-label, 'Ulasan')]")
+                (By.XPATH, '//button[@role="tab" and contains(@aria-label,"Ulasan")]')
             )
         )
         ulasan_tab.click()
-        time.sleep(3)  # Beri waktu loading panel ulasan
+        time.sleep(3)
     except Exception as e:
         print("⚠️ Tidak menemukan tombol 'Ulasan':", e)
         driver.quit()
