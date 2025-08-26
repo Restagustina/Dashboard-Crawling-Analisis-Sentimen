@@ -7,6 +7,7 @@ import signal
 import random
 from datetime import datetime
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
+from webdriver_manager.core.os_manager import OperationSystemManager
 
 # Selenium untuk GMaps
 from selenium import webdriver
@@ -40,11 +41,12 @@ def get_chrome_driver(headless=True):
     options.add_argument(f"user-agent={user_agent}")
 
     driver_version = "139.0.7258.139"  
-    # Memakai parameter driver_version di constructor
-    driver_path = ChromeDriverManager(driver_version=driver_version).install()
+    os_manager = OperationSystemManager(os_type="linux64")  # Tentukan OS Linux 64-bit untuk GitHub runner
+    driver_path = ChromeDriverManager(driver_version=driver_version, os_system_manager=os_manager).install()
 
     driver = webdriver.Chrome(service=Service(driver_path), options=options)
     return driver
+
 
 # =======================
 # GMaps Selenium Scraper
