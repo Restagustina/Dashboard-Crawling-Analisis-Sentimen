@@ -56,7 +56,7 @@ def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
     try:
         ulasan_tab = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
-                (By.XPATH, '//button[@role="tab" and contains(@aria-label,"Ulasan")]')
+                (By.XPATH, "//button[@role='tab' and contains(@aria-label, 'Ulasan')]")
             )
         )
         ulasan_tab.click()
@@ -70,7 +70,7 @@ def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
     review_data = []
     try:
         scrollable_div = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'div[role="region"]'))
+    EC.presence_of_element_located((By.CSS_SELECTOR, 'div.m6QErb'))
         )
     except Exception as e:
         print("⚠️ Tidak menemukan panel review:", e)
@@ -109,22 +109,22 @@ def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
 
                 # Komentar
                 try:
-                    review_info["comment_text"] = elem.find_element(By.CSS_SELECTOR, 'span.wi7pDd').text
+                    review_info["comment_text"] = elem.find_element(By.CSS_SELECTOR, 'div.MyEnf > span.vlJ0lp > span').text
                     # tombol "Lihat lainnya"
                     try:
-                        see_more = elem.find_element(By.CSS_SELECTOR, 'button.w8nwRe')
+                        see_more = elem.find_element(By.CSS_SELECTOR, 'button.w8nwRe.kyuRq')
                         if see_more.get_attribute("aria-expanded") == "false":
                             see_more.click()
-                            time.sleep(1)
+                            time.sleep(1)  # beri waktu loading komentar lengkap
                             review_info["comment_text"] = elem.find_element(By.CSS_SELECTOR, 'div.MyfNed').text
                     except:
                         pass
                 except Exception as e:
                     print(f"⚠️ Error komentar: {e}")
 
-                # Rating
+               # Rating
                 try:
-                    rating_text = elem.find_element(By.CSS_SELECTOR, 'span.HYYyc').get_attribute('aria-label') or ""
+                    rating_text = elem.find_element(By.CSS_SELECTOR, 'div.kwW0Pc[role="img"]').get_attribute('aria-label')
                     match = re.search(r'\d+', rating_text)
                     review_info["rating"] = int(match.group()) if match else None
                 except Exception as e:
@@ -132,7 +132,7 @@ def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
 
                 # Tanggal review
                 try:
-                    date_text = elem.find_element(By.CSS_SELECTOR, 'span.rsqaWe').text
+                    date_text = elem.find_element(By.CSS_SELECTOR, 'span.rqsai6').text
                     created_dt = dateparser.parse(date_text, languages=['id'])
                     review_info["created_at"] = created_dt.isoformat() if created_dt else datetime.now().isoformat()
                 except Exception as e:
