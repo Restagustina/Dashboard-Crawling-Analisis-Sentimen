@@ -34,10 +34,7 @@ jobs:
         chrome-version: stable
         install-dependencies: true
 
-    - name: Remove chromedriver cache
-      run: rm -rf ~/.wdm/drivers/chromedriver
-
-    - name: Install ChromeDriver
+    - name: Setup ChromeDriver
       uses: nanasess/setup-chromedriver@v2
 
     - name: Install lightweight dependencies
