@@ -45,11 +45,11 @@ def get_chrome_driver(headless=True):
 # =======================
 # GMaps Selenium Scraper
 # =======================
-def get_gmaps_reviews_selenium_debug (place_url, max_reviews=50):
-    driver = get_chrome_driver(headless=True)
+def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
+    driver = get_chrome_driver(headless=False)  # Disarankan headless=False untuk debug
     driver.get(place_url)
     print(f"[DEBUG] Mulai parsing review di URL: {place_url}")
-    time.sleep(5)  # Beri waktu loading awal
+    time.sleep(5)  # waktu loading awal
     
     # Tunggu panel review muncul
     try:
@@ -62,25 +62,26 @@ def get_gmaps_reviews_selenium_debug (place_url, max_reviews=50):
         return []
     
     review_data = []
-    last_height = 0
     scroll_attempts = 0
     max_scroll_attempts = 5
+    last_scroll_height = 0
     i = 0
     
     while len(review_data) < max_reviews and scroll_attempts < max_scroll_attempts:
         print(f"[DEBUG] Scroll loop iterasi ke-{i}")
         i += 1
         
-        driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
-        time.sleep(2)
+        # Scroll bertahap 500px
+        driver.execute_script("arguments[0].scrollTop += 500", scrollable_div)
+        time.sleep(3)  # beri waktu muat review baru
         
-        new_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
-        if new_height == last_height:
+        new_scroll_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
+        if new_scroll_height == last_scroll_height:
             scroll_attempts += 1
             print(f"⚠️ Scroll stuck attempt {scroll_attempts}/{max_scroll_attempts}")
         else:
             scroll_attempts = 0
-        last_height = new_height
+        last_scroll_height = new_scroll_height
         
         reviews = scrollable_div.find_elements(By.XPATH, './/div[@role="article"]')
         print(f"📌 Jumlah review terkumpul: {len(reviews)}")
