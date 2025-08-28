@@ -45,7 +45,7 @@ def get_chrome_driver(headless=True):
 # =======================
 # GMaps Selenium Scraper
 # =======================
-def get_gmaps_reviews_selenium_direct(place_url, max_reviews=50):
+def get_gmaps_reviews_selenium_debug (place_url, max_reviews=50):
     driver = get_chrome_driver(headless=True)
     driver.get(place_url)
     print(f"[DEBUG] Mulai parsing review di URL: {place_url}")
