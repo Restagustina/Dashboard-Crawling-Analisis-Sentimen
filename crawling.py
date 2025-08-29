@@ -8,6 +8,7 @@ import random
 from datetime import datetime
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 from webdriver_manager.core.os_manager import OperationSystemManager
+import tempfile
 
 # Selenium untuk GMaps
 from selenium import webdriver
@@ -37,8 +38,13 @@ def get_chrome_driver(headless=True):
     if headless:
         options.add_argument("--headless=new")
 
+    user_data_dir = tempfile.mkdtemp()
+    options.add_argument(f"--user-data-dir={user_data_dir}")
+
+    # Pakai user agent custom biar aman dari blokir
     user_agent = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     options.add_argument(f"user-agent={user_agent}")
+
     driver = webdriver.Chrome(options=options)
     return driver
 
