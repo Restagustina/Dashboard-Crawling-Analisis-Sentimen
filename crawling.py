@@ -26,7 +26,7 @@ except ImportError:
     playstore_reviews = None
     print("⚠️ Module google_play_scraper belum terinstall, Play Store scraping nonaktif.")
 
-# 🔧 Chrome Driver Setup
+# set up chromedriver
 def get_chrome_driver(headless=True):
     options = Options()
     options.add_argument("--no-sandbox")
@@ -38,10 +38,6 @@ def get_chrome_driver(headless=True):
     if headless:
         options.add_argument("--headless=new")
 
-    user_data_dir = tempfile.mkdtemp()
-    options.add_argument(f"--user-data-dir={user_data_dir}")
-
-    # Pakai user agent custom biar aman dari blokir
     user_agent = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     options.add_argument(f"user-agent={user_agent}")
 
