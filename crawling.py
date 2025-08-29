@@ -53,83 +53,84 @@ def get_chrome_driver(headless=True):
 # =======================
 def get_gmaps_reviews_selenium_debug(place_url, max_reviews=50):
     driver = get_chrome_driver(headless=False)  # Disarankan headless=False untuk debug
-    driver.get(place_url)
-    print(f"[DEBUG] Mulai parsing review di URL: {place_url}")
-    time.sleep(5)  # waktu loading awal
-    
-    # Tunggu panel review muncul
     try:
-        scrollable_div = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'div.m6QErb'))
-        )
-    except Exception as e:
-        print("⚠️ Tidak menemukan panel review:", e)
-        driver.quit()
-        return []
+        driver.get(place_url)
+        print(f"[DEBUG] Mulai parsing review di URL: {place_url}")
+        time.sleep(5)  # waktu loading awal
+        
+        # Tunggu panel review muncul
+        try:
+            scrollable_div = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'div.m6QErb'))
+            )
+        except Exception as e:
+            print("⚠️ Tidak menemukan panel review:", e)
+            return []
     
-    review_data = []
-    scroll_attempts = 0
-    max_scroll_attempts = 5
-    last_scroll_height = 0
-    i = 0
-    
-    while len(review_data) < max_reviews and scroll_attempts < max_scroll_attempts:
-        print(f"[DEBUG] Scroll loop iterasi ke-{i}")
-        i += 1
+        review_data = []
+        scroll_attempts = 0
+        max_scroll_attempts = 5
+        last_scroll_height = 0
+        i = 0
         
-        # Scroll bertahap 500px
-        driver.execute_script("arguments[0].scrollTop += 500", scrollable_div)
-        time.sleep(3)  # beri waktu muat review baru
-        
-        new_scroll_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
-        if new_scroll_height == last_scroll_height:
-            scroll_attempts += 1
-            print(f"⚠️ Scroll stuck attempt {scroll_attempts}/{max_scroll_attempts}")
-        else:
-            scroll_attempts = 0
-        last_scroll_height = new_scroll_height
-        
-        reviews = scrollable_div.find_elements(By.XPATH, './/div[@role="article"]')
-        print(f"📌 Jumlah review terkumpul: {len(reviews)}")
-        
-        for elem in reviews[len(review_data):]:
-            review_info = {"username": None, "comment_text": None, "rating": None, "created_at": None}
-            try:
-                review_info["username"] = elem.find_element(By.CSS_SELECTOR, 'div.d4r55').text
-            except:
-                pass
-            try:
-                review_info["comment_text"] = elem.find_element(By.CSS_SELECTOR, 'div.MyEnf > span.vlJ0lp > span').text
+        while len(review_data) < max_reviews and scroll_attempts < max_scroll_attempts:
+            print(f"[DEBUG] Scroll loop iterasi ke-{i}")
+            i += 1
+                
+            # Scroll bertahap 500px
+            driver.execute_script("arguments[0].scrollTop += 500", scrollable_div)
+            time.sleep(3)  # beri waktu muat review baru
+                
+            new_scroll_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
+            if new_scroll_height == last_scroll_height:
+                scroll_attempts += 1
+                print(f"⚠️ Scroll stuck attempt {scroll_attempts}/{max_scroll_attempts}")
+            else:
+                scroll_attempts = 0
+            last_scroll_height = new_scroll_height
+            
+            reviews = scrollable_div.find_elements(By.XPATH, './/div[@role="article"]')
+            print(f"📌 Jumlah review terkumpul: {len(reviews)}")
+                
+            for elem in reviews[len(review_data):]:
+                review_info = {"username": None, "comment_text": None, "rating": None, "created_at": None}
                 try:
-                    see_more = elem.find_element(By.CSS_SELECTOR, 'button.w8nwRe.kyuRq')
-                    if see_more.get_attribute("aria-expanded") == "false":
-                        see_more.click()
-                        time.sleep(1)
-                        review_info["comment_text"] = elem.find_element(By.CSS_SELECTOR, 'div.MyfNed').text
+                    review_info["username"] = elem.find_element(By.CSS_SELECTOR, 'div.d4r55').text
                 except:
                     pass
-            except:
-                pass
-            try:
-                rating_text = elem.find_element(By.CSS_SELECTOR, 'div.kwW0Pc[role="img"]').get_attribute('aria-label')
-                match = re.search(r'\d+', rating_text)
-                review_info["rating"] = int(match.group()) if match else None
-            except:
-                pass
-            try:
-                date_text = elem.find_element(By.CSS_SELECTOR, 'span.rqsai6').text
-                created_dt = dateparser.parse(date_text, languages=['id'])
-                review_info["created_at"] = created_dt.isoformat() if created_dt else datetime.now().isoformat()
-            except:
-                review_info["created_at"] = datetime.now().isoformat()
-            
-            review_data.append(review_info)
-            
-            if len(review_data) >= max_reviews:
-                break
-    
-    driver.quit()
-    return review_data
+                try:
+                    review_info["comment_text"] = elem.find_element(By.CSS_SELECTOR, 'div.MyEnf > span.vlJ0lp > span').text
+                    try:
+                        see_more = elem.find_element(By.CSS_SELECTOR, 'button.w8nwRe.kyuRq')
+                        if see_more.get_attribute("aria-expanded") == "false":
+                            see_more.click()
+                            time.sleep(1)
+                            review_info["comment_text"] = elem.find_element(By.CSS_SELECTOR, 'div.MyfNed').text
+                    except:
+                        pass
+                except:
+                    pass
+                try:
+                    rating_text = elem.find_element(By.CSS_SELECTOR, 'div.kwW0Pc[role="img"]').get_attribute('aria-label')
+                    match = re.search(r'\d+', rating_text)
+                    review_info["rating"] = int(match.group()) if match else None
+                except:
+                    pass
+                try:
+                    date_text = elem.find_element(By.CSS_SELECTOR, 'span.rqsai6').text
+                    created_dt = dateparser.parse(date_text, languages=['id'])
+                    review_info["created_at"] = created_dt.isoformat() if created_dt else datetime.now().isoformat()
+                except:
+                    review_info["created_at"] = datetime.now().isoformat()
+                    
+                review_data.append(review_info)
+                
+                if len(review_data) >= max_reviews:
+                    break
+        
+        return review_data
+    finally:
+        driver.quit()
 
 # =======================
 # Play Store Scraper
