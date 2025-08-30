@@ -126,7 +126,6 @@ if selected == "Home":
     with c3: st.metric("Netral", neu)
     with c4: st.metric("Negatif", neg)
 
-    # Hitung skor rata-rata sentimen hari ini dan kemarin
     if not df.empty and "created_at" in df.columns:
         today = pd.Timestamp.now().normalize()
         yesterday = today - pd.Timedelta(days=1)
@@ -134,19 +133,20 @@ if selected == "Home":
         df_today = df[(df["created_at"] >= today) & (df["created_at"] < today + pd.Timedelta(days=1))]
         df_yesterday = df[(df["created_at"] >= yesterday) & (df["created_at"] < today)]
 
+        # Ambil nilai rata-rata sentiment_score, aman jika kosong
+        score_today = df_today["sentiment_score"].dropna().mean() if not df_today.empty else None
+        score_yesterday = df_yesterday["sentiment_score"].dropna().mean() if not df_yesterday.empty else None
+
         def sentiment_score_to_0_100(score):
-            # Asumsikan sentiment_score dari -1 sampai 1, ubah ke skala 0-100
-            if pd.isna(score):
-                return None
+            if score is None or pd.isna(score):
+                return 0
             return int((score + 1) * 50)
 
-        score_today = df_today["sentiment_score"].dropna().mean()
-        score_yesterday = df_yesterday["sentiment_score"].dropna().mean()
+        score_today_100 = sentiment_score_to_0_100(score_today)
+        score_yesterday_100 = sentiment_score_to_0_100(score_yesterday)
 
-        score_today_100 = sentiment_score_to_0_100(score_today) if score_today is not None else 0
-        score_yesterday_100 = sentiment_score_to_0_100(score_yesterday) if score_yesterday is not None else 0
+        diff = score_today_100 - score_yesterday_100
 
-        # Buat gauge chart dengan plotly dan tambah panah delta
         fig = go.Figure(go.Indicator(
             mode="gauge+number+delta",
             value=score_today_100,
@@ -172,6 +172,7 @@ if selected == "Home":
                 }
             }
         ))
+        fig.update_layout(width=200, height=100)
 
         st.markdown("---")
         st.subheader("Performa Sentimen Hari Ini")
@@ -180,13 +181,13 @@ if selected == "Home":
         with col1:
             st.plotly_chart(fig, use_container_width=True)
         with col2:
-            diff = score_today_100 - score_yesterday_100
             if diff > 0:
                 st.markdown("<h2 style='color:green;'>&#9650; Meningkat</h2>", unsafe_allow_html=True)
             elif diff < 0:
                 st.markdown("<h2 style='color:red;'>&#9660; Menurun</h2>", unsafe_allow_html=True)
             else:
                 st.markdown("<h2 style='color:gray;'>Stabil</h2>", unsafe_allow_html=True)
+
     else:
         st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
 
