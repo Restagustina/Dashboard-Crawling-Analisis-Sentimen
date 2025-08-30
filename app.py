@@ -172,7 +172,7 @@ if selected == "Home":
                 }
             }
         ))
-        fig.update_layout(width=200, height=100)
+        fig.update_layout(width=500, height=400)
 
         st.markdown("---")
         st.subheader("Performa Sentimen Hari Ini")
