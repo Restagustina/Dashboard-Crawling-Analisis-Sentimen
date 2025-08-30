@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
 from streamlit_option_menu import option_menu
 import dateparser
+import plotly.express as px
 from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 
@@ -276,8 +277,28 @@ elif selected == "Visualisasi":
             df_filtered = df_filtered[df_filtered["source"] == sumber_filter]
 
         df_filtered["sentimen_label"] = df_filtered["sentimen_label"].astype(str).str.strip().str.lower()
-        col1, col2 = st.columns(2)
 
+        # Bar chart jumlah komentar per sentimen
+        sentimen_counts = df_filtered["sentimen_label"].value_counts().reset_index()
+        sentimen_counts.columns = ["Sentimen", "Jumlah"]
+        sentimen_counts["Sentimen"] = sentimen_counts["Sentimen"].str.capitalize()
+
+        fig_bar = px.bar(
+            sentimen_counts,
+            x="Sentimen",
+            y="Jumlah",
+            color="Sentimen",
+            color_discrete_map={"Positif": "green", "Netral": "gray", "Negatif": "red"},
+            title="Jumlah Komentar per Kategori Sentimen",
+            labels={"Jumlah": "Jumlah Komentar", "Sentimen": "Kategori Sentimen"},
+            text="Jumlah"
+        )
+        fig_bar.update_traces(textposition="outside")
+        fig_bar.update_layout(yaxis=dict(dtick=1))
+
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+        col1, col2 = st.columns(2)
         with col1:
             st.subheader("Persentase Sentimen")
             overall = df_filtered["sentimen_label"].value_counts()
@@ -313,12 +334,12 @@ elif selected == "Visualisasi":
                 ax3.set_xlabel("Bulan")
                 ax3.set_ylabel("Jumlah Komentar")
                 ax3.grid(alpha=0.3)
-                ax3.set_ylim(0, max(trend["count"])*1.4)
+                ax3.set_ylim(0, max(trend["count"]) * 1.4)
                 for x, y in zip(trend["month"], trend["count"]):
                     ax3.text(x, y + 0.1, str(y), ha='center', va='bottom', fontsize=10)
                 st.pyplot(fig3, use_container_width=True)
-        else:
-            st.info("Tidak ada data untuk tren komentar.")
+            else:
+                st.info("Tidak ada data untuk tren komentar.")
 
 # -------------------------
 # Tentang
