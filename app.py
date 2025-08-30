@@ -152,8 +152,8 @@ if selected == "Home":
             delta={
                 'reference': score_yesterday_100,
                 'position': "right",
-                'increasing': {'color': "green"},
-                'decreasing': {'color': "red"},
+                'increasing': {'color': "green"},  
+                'decreasing': {'color': "red"},    
                 'font': {'size': 16}
             },
             gauge={
@@ -183,6 +183,7 @@ if selected == "Home":
             st.plotly_chart(fig, use_container_width=False)
         with col2:
             if diff > 0:
+                # Panah hijau dan petir
                 st.markdown("<h1 style='color:green;'>⚡ &#9650; Meningkat</h1>", unsafe_allow_html=True)
             elif diff < 0:
                 st.markdown("<h1 style='color:red;'>&#9660; Menurun</h1>", unsafe_allow_html=True)
