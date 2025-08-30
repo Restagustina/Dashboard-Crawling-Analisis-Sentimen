@@ -152,8 +152,9 @@ if selected == "Home":
             delta={
                 'reference': score_yesterday_100,
                 'position': "right",
-                'increasing': {'color': "green"},  
-                'decreasing': {'color': "red"},    
+                'relative': False,
+                'increasing': {'color': "green"},
+                'decreasing': {'color': "red"},
                 'font': {'size': 16}
             },
             gauge={
