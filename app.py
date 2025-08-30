@@ -146,26 +146,47 @@ if selected == "Home":
         score_today_100 = sentiment_score_to_0_100(score_today) if score_today is not None else 0
         score_yesterday_100 = sentiment_score_to_0_100(score_yesterday) if score_yesterday is not None else 0
 
-        # Buat gauge chart dengan plotly
+        # Buat gauge chart dengan plotly dan tambah panah delta
         fig = go.Figure(go.Indicator(
-            mode = "gauge+number+delta",
-            value = score_today_100,
-            delta = {'reference': score_yesterday_100, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
-            gauge = {
+            mode="gauge+number+delta",
+            value=score_today_100,
+            delta={
+                'reference': score_yesterday_100,
+                'position': "right",
+                'increasing': {'color': "green", 'symbol': "triangle-up"},
+                'decreasing': {'color': "red", 'symbol': "triangle-down"},
+                'font': {'size': 16}
+            },
+            gauge={
                 'axis': {'range': [0, 100]},
                 'bar': {'color': "darkblue"},
-                'steps' : [
+                'steps': [
                     {'range': [0, 40], 'color': "red"},
                     {'range': [40, 70], 'color': "yellow"},
-                    {'range': [70, 100], 'color': "green"}],
-                'threshold' : {
+                    {'range': [70, 100], 'color': "green"}
+                ],
+                'threshold': {
                     'line': {'color': "black", 'width': 4},
                     'thickness': 0.75,
-                    'value': score_today_100}}))
+                    'value': score_today_100
+                }
+            }
+        ))
 
         st.markdown("---")
         st.subheader("Performa Sentimen Hari Ini")
-        st.plotly_chart(fig, use_container_width=True)
+
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            diff = score_today_100 - score_yesterday_100
+            if diff > 0:
+                st.markdown("<h2 style='color:green;'>&#9650; Meningkat</h2>", unsafe_allow_html=True)
+            elif diff < 0:
+                st.markdown("<h2 style='color:red;'>&#9660; Menurun</h2>", unsafe_allow_html=True)
+            else:
+                st.markdown("<h2 style='color:gray;'>Stabil</h2>", unsafe_allow_html=True)
     else:
         st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
 
