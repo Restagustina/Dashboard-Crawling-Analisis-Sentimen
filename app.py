@@ -146,51 +146,19 @@ if selected == "Home":
 
         diff = score_today_100 - score_yesterday_100
 
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number+delta",
-            value=score_today_100,
-            delta={
-                'reference': score_yesterday_100,
-                'position': "right",
-                'relative': False,
-                'increasing': {'color': "green"},
-                'decreasing': {'color': "red"},
-                'font': {'size': 16}
-            },
-            gauge={
-                'axis': {'range': [0, 100]},
-                'bar': {'color': "darkblue"},
-                'steps': [
-                    {'range': [0, 40], 'color': "red"},
-                    {'range': [40, 70], 'color': "yellow"},
-                    {'range': [70, 100], 'color': "green"}
-                ],
-                'threshold': {
-                    'line': {'color': "black", 'width': 4},
-                    'thickness': 0.75,
-                    'value': score_today_100
-                }
-            },
-            hovertemplate="%{value} %<extra></extra>"
-        ))
-
-        fig.update_layout(width=500, height=400)
-
         st.markdown("---")
         st.subheader("Performa Sentimen Hari Ini")
-
-        col1, col2 = st.columns([3, 1])
+        col1, col2 = st.columns([4, 1])
         with col1:
-            st.plotly_chart(fig, use_container_width=False)
+            st.progress(score_today_100 / 100)
+            st.markdown(f"<h3>{score_today_100} %</h3>", unsafe_allow_html=True)
         with col2:
             if diff > 0:
-                # Panah hijau dan petir
                 st.markdown("<h1 style='color:green;'>⚡ &#9650; Meningkat</h1>", unsafe_allow_html=True)
             elif diff < 0:
                 st.markdown("<h1 style='color:red;'>&#9660; Menurun</h1>", unsafe_allow_html=True)
             else:
                 st.markdown("<h1 style='color:gray;'>Stabil</h1>", unsafe_allow_html=True)
-
     else:
         st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
 
