@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
 from streamlit_option_menu import option_menu
 import dateparser
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
 from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 
@@ -114,7 +112,7 @@ if selected == "Home":
     st.markdown("<h2 style='margin:0'>Analisis Sentimen Review</h2>", unsafe_allow_html=True)
     st.markdown("<p style='color:#6b7280;margin-top:6px'>Dashboard ringkasan sentimen komentar publik dari Google Maps & Play Store.</p>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
-
+    
     df = load_comments()
     c1, c2, c3, c4 = st.columns([1,1,1,1])
     total = len(df)
@@ -125,7 +123,7 @@ if selected == "Home":
     with c2: st.metric("Positif", pos)
     with c3: st.metric("Netral", neu)
     with c4: st.metric("Negatif", neg)
-
+    
     if not df.empty and "created_at" in df.columns:
         today = pd.Timestamp.now().normalize()
         yesterday = today - pd.Timedelta(days=1)
@@ -142,23 +140,22 @@ if selected == "Home":
             return int((score + 1) * 50)
 
         score_today_100 = sentiment_score_to_0_100(score_today)
-        score_yesterday_100 = sentiment_score_to_0_100(score_yesterday)
 
-        diff = score_today_100 - score_yesterday_100
+        # Fungsi tentukan warna berdasarkan persentase performa
+        def warna_performance(persen):
+            if persen >= 70:
+                return "green"
+            elif persen >= 40:
+                return "orange"
+            else:
+                return "red"
+
+        warna = warna_performance(score_today_100)
 
         st.markdown("---")
-        st.subheader("Performa Sentimen Hari Ini")
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            st.progress(score_today_100 / 100)
-            st.markdown(f"<h3>{score_today_100} %</h3>", unsafe_allow_html=True)
-        with col2:
-            if diff > 0:
-                st.markdown("<h1 style='color:green;'>⚡ &#9650; Meningkat</h1>", unsafe_allow_html=True)
-            elif diff < 0:
-                st.markdown("<h1 style='color:red;'>&#9660; Menurun</h1>", unsafe_allow_html=True)
-            else:
-                st.markdown("<h1 style='color:gray;'>Stabil</h1>", unsafe_allow_html=True)
+        st.subheader("Performa Perbaikan Sentimen")
+        st.markdown(f"<h1 style='color:{warna}; font-weight:bold;'>{score_today_100}%</h1>", unsafe_allow_html=True)
+        
     else:
         st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
 
