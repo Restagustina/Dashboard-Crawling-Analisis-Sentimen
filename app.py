@@ -236,7 +236,11 @@ elif selected == "Analisis":
     if df.empty:
         st.info("Belum ada data. Silakan lakukan Crawling Data.")
     else:
-        sumber_filter = st.selectbox("Pilih Sumber", options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), index=0)
+        sumber_filter = st.selectbox(
+            "Pilih Sumber", 
+            options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), 
+            index=0
+        )
         df_filtered = df.copy()
         if sumber_filter != "Semua":
             df_filtered = df_filtered[df_filtered["source"] == sumber_filter]
@@ -250,6 +254,36 @@ elif selected == "Analisis":
         with c2: st.metric("Positif", pos)
         with c3: st.metric("Netral", neu)
         with c4: st.metric("Negatif", neg)
+
+        # Kata kunci aspek area perbaikan disesuaikan dengan contoh data
+        aspek_keywords = {
+            "Registrasi & Verifikasi": ["daftar", "verifikasi", "akun", "gagal", "data tidak sesuai"],
+            "Pembayaran": ["bayar", "gagal bayar", "kode bayar", "metode", "transaksi"],
+            "Pengiriman Dokumen": ["kirim", "lambat", "pos", "stnk", "dokumen"],
+            "Pelayanan & CS": ["cs", "customer service", "live chat", "respon", "pelayanan"],
+            "Aplikasi & Sistem": ["error", "crash", "lambat", "gagal", "eror"],
+            "Jaringan & Koneksi": ["koneksi", "internet", "sinyal", "tidak bisa"],
+            "Data Pribadi & Dokumen": ["ktp", "stnk", "data", "foto", "identifikasi"]
+        }
+
+        df_negatif = df_filtered[df_filtered["sentimen_label"] == "negatif"]
+
+        area_perbaikan = {}
+        for aspek, keywords in aspek_keywords.items():
+            count = df_negatif["comment_text"].str.lower().apply(
+                lambda x: any(kw in x for kw in keywords) if isinstance(x, str) else False
+            ).sum()
+            area_perbaikan[aspek] = count
+
+        area_perbaikan = {k: v for k, v in sorted(area_perbaikan.items(), key=lambda item: item[1], reverse=True) if v > 0}
+
+        st.markdown("---")
+        st.subheader("Area Perbaikan (dari komentar negatif)")
+        if area_perbaikan:
+            for aspek, jumlah in area_perbaikan.items():
+                st.write(f"- **{aspek}**: {jumlah} komentar negatif")
+        else:
+            st.info("Tidak terdeteksi area perbaikan yang signifikan.")
 
         st.markdown("---")
         st.subheader("Komentar Detail")
