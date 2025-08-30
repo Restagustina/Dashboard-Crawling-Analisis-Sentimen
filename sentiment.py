@@ -2,9 +2,7 @@
 import os
 import re
 from datetime import datetime
-import streamlit as st
 from supabase_utils import get_supabase_client
-
 
 # Sentiment
 import nltk
