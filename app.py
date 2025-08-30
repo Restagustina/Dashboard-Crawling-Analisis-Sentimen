@@ -133,7 +133,6 @@ if selected == "Home":
         df_today = df[(df["created_at"] >= today) & (df["created_at"] < today + pd.Timedelta(days=1))]
         df_yesterday = df[(df["created_at"] >= yesterday) & (df["created_at"] < today)]
 
-        # Ambil nilai rata-rata sentiment_score, aman jika kosong
         score_today = df_today["sentiment_score"].dropna().mean() if not df_today.empty else None
         score_yesterday = df_yesterday["sentiment_score"].dropna().mean() if not df_yesterday.empty else None
 
@@ -170,8 +169,10 @@ if selected == "Home":
                     'thickness': 0.75,
                     'value': score_today_100
                 }
-            }
+            },
+            hovertemplate="%{value} %<extra></extra>"
         ))
+
         fig.update_layout(width=500, height=400)
 
         st.markdown("---")
@@ -179,14 +180,14 @@ if selected == "Home":
 
         col1, col2 = st.columns([3, 1])
         with col1:
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=False)
         with col2:
             if diff > 0:
-                st.markdown("<h2 style='color:green;'>&#9650; Meningkat</h2>", unsafe_allow_html=True)
+                st.markdown("<h1 style='color:green;'>⚡ &#9650; Meningkat</h1>", unsafe_allow_html=True)
             elif diff < 0:
-                st.markdown("<h2 style='color:red;'>&#9660; Menurun</h2>", unsafe_allow_html=True)
+                st.markdown("<h1 style='color:red;'>&#9660; Menurun</h1>", unsafe_allow_html=True)
             else:
-                st.markdown("<h2 style='color:gray;'>Stabil</h2>", unsafe_allow_html=True)
+                st.markdown("<h1 style='color:gray;'>Stabil</h1>", unsafe_allow_html=True)
 
     else:
         st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
