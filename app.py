@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
 from streamlit_option_menu import option_menu
 import dateparser
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
 from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 
@@ -123,6 +125,49 @@ if selected == "Home":
     with c2: st.metric("Positif", pos)
     with c3: st.metric("Netral", neu)
     with c4: st.metric("Negatif", neg)
+
+    # Hitung skor rata-rata sentimen hari ini dan kemarin
+    if not df.empty and "created_at" in df.columns:
+        today = pd.Timestamp.now().normalize()
+        yesterday = today - pd.Timedelta(days=1)
+
+        df_today = df[(df["created_at"] >= today) & (df["created_at"] < today + pd.Timedelta(days=1))]
+        df_yesterday = df[(df["created_at"] >= yesterday) & (df["created_at"] < today)]
+
+        def sentiment_score_to_0_100(score):
+            # Asumsikan sentiment_score dari -1 sampai 1, ubah ke skala 0-100
+            if pd.isna(score):
+                return None
+            return int((score + 1) * 50)
+
+        score_today = df_today["sentiment_score"].dropna().mean()
+        score_yesterday = df_yesterday["sentiment_score"].dropna().mean()
+
+        score_today_100 = sentiment_score_to_0_100(score_today) if score_today is not None else 0
+        score_yesterday_100 = sentiment_score_to_0_100(score_yesterday) if score_yesterday is not None else 0
+
+        # Buat gauge chart dengan plotly
+        fig = go.Figure(go.Indicator(
+            mode = "gauge+number+delta",
+            value = score_today_100,
+            delta = {'reference': score_yesterday_100, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
+            gauge = {
+                'axis': {'range': [0, 100]},
+                'bar': {'color': "darkblue"},
+                'steps' : [
+                    {'range': [0, 40], 'color': "red"},
+                    {'range': [40, 70], 'color': "yellow"},
+                    {'range': [70, 100], 'color': "green"}],
+                'threshold' : {
+                    'line': {'color': "black", 'width': 4},
+                    'thickness': 0.75,
+                    'value': score_today_100}}))
+
+        st.markdown("---")
+        st.subheader("Performa Sentimen Hari Ini")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
 
     st.markdown("---")
     st.subheader("Komentar terbaru")
