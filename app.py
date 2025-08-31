@@ -17,9 +17,9 @@ def get_client():
 # Page config
 # -------------------------
 st.set_page_config(page_title="Analisis Sentimen Review", page_icon="📊", layout="wide")
-
 PRIMARY = "#20B2AA"
 BG = "#f5f7fa"
+
 
 st.markdown(
     f"""
@@ -51,6 +51,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # -------------------------
 # Helpers
 # -------------------------
@@ -76,6 +77,7 @@ def load_comments():
         st.error(f"Gagal mengambil data dari Supabase: {e}")
         return pd.DataFrame()
 
+
 def generate_wordcloud(text_series, max_words=150):
     text = " ".join(text_series.dropna().astype(str).values)
     if not text.strip():
@@ -85,14 +87,17 @@ def generate_wordcloud(text_series, max_words=150):
     wc = WordCloud(width=900, height=400, background_color="white", max_words=max_words, stopwords=stopwords_set).generate(text)
     return wc
 
+
 def clear_cache():
     load_comments.clear()
 
+
 # -------------------------
-# Default values untuk Crawl
+# Default values untuk Crawl dari secrets (fallback kalau tidak ada)
 # -------------------------
-DEFAULT_GMAPS_URL = "https://www.google.com/maps/place/Samsat+UPTB+Palembang+1/@-2.9870757,104.7412692,17z/data=!4m6!3m5!1s0x2e3b75e6afb58fa1:0xb83c1a47293793d7!8m2!3d-2.9870757!4d104.7438441!16s%2Fg%2F11c6rj50mr?entry=ttu&g_ep=EgoyMDI1MDgxMC4wIKXMDSoASAFQAw%3D%3D"
-DEFAULT_PLAY_PACKAGE = "app.signal.id"
+DEFAULT_GMAPS_URL = st.secrets.get("GMAPS_URL", "https://www.google.com/maps/place/Samsat+UPTB+Palembang+1/@-2.9870757,104.7412692,17z/data=!4m6!3m5!1s0x2e3b75e6afb58fa1:0xb83c1a47293793d7!8m2!3d-2.9870757!4d104.7438441!16s%2Fg%2F11c6rj50mr?entry=ttu&g_ep=EgoyMDI1MDgxMC4wIKXMDSoASAFQAw%3D%3D")
+DEFAULT_PLAY_PACKAGE = st.secrets.get("PLAYSTORE_PACKAGE", "app.signal.id")
+
 
 # -------------------------
 # Top navigation
@@ -105,6 +110,7 @@ selected = option_menu(
     orientation="horizontal",
 )
 
+
 # -------------------------
 # Home
 # -------------------------
@@ -113,7 +119,7 @@ if selected == "Home":
     st.markdown("<h2 style='margin:0'>Analisis Sentimen Review</h2>", unsafe_allow_html=True)
     st.markdown("<p style='color:#6b7280;margin-top:6px'>Dashboard ringkasan sentimen komentar publik dari Google Maps & Play Store.</p>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
-    
+
     df = load_comments()
     c1, c2, c3, c4 = st.columns([1,1,1,1])
     total = len(df)
@@ -124,7 +130,7 @@ if selected == "Home":
     with c2: st.metric("Positif", pos)
     with c3: st.metric("Netral", neu)
     with c4: st.metric("Negatif", neg)
-    
+
     if not df.empty and "created_at" in df.columns:
         today = pd.Timestamp.now().normalize()
         yesterday = today - pd.Timedelta(days=1)
@@ -142,7 +148,6 @@ if selected == "Home":
 
         score_today_100 = sentiment_score_to_0_100(score_today)
 
-        # Fungsi tentukan warna berdasarkan persentase performa
         def warna_performance(persen):
             if persen >= 70:
                 return "green"
@@ -156,9 +161,10 @@ if selected == "Home":
         st.markdown("---")
         st.subheader("Performa Perbaikan Sentimen")
         st.markdown(f"<h1 style='color:{warna}; font-weight:bold;'>{score_today_100}%</h1>", unsafe_allow_html=True)
-        
+    
     else:
         st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
+
 
     st.markdown("---")
     st.subheader("Komentar terbaru")
@@ -171,6 +177,7 @@ if selected == "Home":
             use_container_width=True
         )
     st.button("🔄 Refresh data", on_click=clear_cache)
+
 
 # -------------------------
 # Crawl Data
@@ -225,6 +232,7 @@ elif selected == "Crawl Data":
 
     st.markdown("</div>", unsafe_allow_html=True)
 
+
 # -------------------------
 # Analisis
 # -------------------------
@@ -255,7 +263,6 @@ elif selected == "Analisis":
         with c3: st.metric("Netral", neu)
         with c4: st.metric("Negatif", neg)
 
-        # Kata kunci aspek area perbaikan disesuaikan dengan contoh data
         aspek_keywords = {
             "Registrasi & Verifikasi": ["daftar", "verifikasi", "akun", "gagal", "data tidak sesuai"],
             "Pembayaran": ["bayar", "gagal bayar", "kode bayar", "metode", "transaksi"],
@@ -294,6 +301,7 @@ elif selected == "Analisis":
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
+
 # -------------------------
 # Visualisasi
 # -------------------------
@@ -303,7 +311,7 @@ elif selected == "Visualisasi":
 
     df = load_comments()
     if df.empty:
-        st.info("Belum ada data untuk divisualisasikan.")
+        st.info("Tidak ada data untuk divisualisasikan.")
     else:
         sumber_filter = st.selectbox("Pilih Sumber", options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), index=0)
         df_filtered = df.copy()
@@ -312,7 +320,6 @@ elif selected == "Visualisasi":
 
         df_filtered["sentimen_label"] = df_filtered["sentimen_label"].astype(str).str.strip().str.lower()
 
-        # Bar chart jumlah komentar per sentimen
         sentimen_counts = df_filtered["sentimen_label"].value_counts().reset_index()
         sentimen_counts.columns = ["Sentimen", "Jumlah"]
         sentimen_counts["Sentimen"] = sentimen_counts["Sentimen"].str.capitalize()

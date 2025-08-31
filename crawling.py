@@ -1,13 +1,13 @@
 # crawling.py
-import os
 import requests
 import time
 import random
 from datetime import datetime
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
+import streamlit as st
 
 # Lobstr.io API untuk crawling GMaps
-LOBSTR_API_TOKEN = os.getenv("LOBSTR_API_TOKEN")
+LOBSTR_API_TOKEN = st.secrets.get("LOBSTR_API_TOKEN")  # ambil langsung dari secrets Streamlit
 LOBSTR_API_BASE = "https://api.lobstr.io/v1"
 
 # Play Store Scraper
@@ -18,7 +18,37 @@ except ImportError:
     print("⚠️ Module google_play_scraper belum terinstall, Play Store scraping nonaktif.")
 
 # =======================
-# GMaps Scraper via Lobstr.io API  
+# Panggil API eksternal Lobstr.io tambah task
+# =======================
+def call_external_api(payload=None):
+    api_url = f"{LOBSTR_API_BASE}/tasks"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Token {LOBSTR_API_TOKEN}"
+    }
+    try:
+        if payload is None:
+            payload = {}
+        response = requests.post(api_url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        print(f"Gagal memanggil API eksternal: {e}")
+        return None
+
+# =======================
+# Fungsi panggilan crawling dengan payload task
+# =======================
+def start_crawling_with_lobstr(squid_id, urls):
+    payload = {
+        "cluster": squid_id,
+        "tasks": [{"url": url} for url in urls]
+    }
+    result = call_external_api(payload)
+    return result
+
+# =======================
+# GMaps Scraper via Lobstr.io API
 # =======================
 def get_gmaps_reviews_lobstr(gmaps_url, max_reviews=10):
     headers = {
@@ -26,7 +56,6 @@ def get_gmaps_reviews_lobstr(gmaps_url, max_reviews=10):
         "Accept": "application/json",
     }
 
-    # Contoh endpoint (ubah sesuai dokumentasi API Lobstr)
     endpoint = f"{LOBSTR_API_BASE}/crawlers/google_maps/reviews"
 
     params = {
@@ -37,7 +66,6 @@ def get_gmaps_reviews_lobstr(gmaps_url, max_reviews=10):
     response = requests.get(endpoint, headers=headers, params=params)
     if response.status_code == 200:
         data = response.json()
-        # parsing dan transform data ke format yang sesuai
         reviews = []
         for item in data.get("reviews", []):
             reviews.append({
@@ -51,7 +79,7 @@ def get_gmaps_reviews_lobstr(gmaps_url, max_reviews=10):
     else:
         print(f"Failed fetching Lobstr GMaps reviews: {response.status_code} {response.text}")
         return []
-    
+
 # =======================
 # Play Store Scraper
 # =======================
@@ -100,28 +128,21 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
     return all_reviews
 
 # =======================
-# Main Run
+# Main Run crawling dan Analisis
 # =======================
 def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews=10):
-    # -------------------------
     # Crawling GMaps
-    # -------------------------
     if gmaps_url:
         print("📌 Crawling GMaps...")
-
-        # Panggil fungsi panggilan API Lobstr.io
-        gmaps_reviews = get_gmaps_reviews_lobstr(gmaps_url, max_reviews=max_reviews)  
-
+        gmaps_reviews = get_gmaps_reviews_lobstr(gmaps_url, max_reviews=max_reviews)
         print(f"DEBUG: Jumlah review GMaps yang ditemukan = {len(gmaps_reviews)}")
         if gmaps_reviews:
             save_reviews_to_supabase(gmaps_reviews, "gmaps")
         else:
             print("⚠️ Tidak ada review GMaps yang ditemukan!")
 
-    # -------------------------
     # Crawling Play Store
-    # -------------------------
-    if app_package_name:  
+    if app_package_name:
         print("📌 Crawling Play Store...")
         ps_reviews = get_playstore_reviews_app(app_package_name, count=max_reviews)
         print(f"DEBUG: Jumlah review Play Store yang ditemukan = {len(ps_reviews)}")
@@ -130,10 +151,8 @@ def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews
         else:
             print("⚠️ Tidak ada review Play Store yang ditemukan!")
 
-    # -------------------------
-    # Analisis Sentimen
-    # -------------------------
-    if gmaps_url or app_package_name:  # update kalau ada data baru
+    # Analisis Sentimen (jika ada data baru)
+    if gmaps_url or app_package_name:
         print("📌 Update sentiment...")
         update_sentiment_in_supabase()
         print("✅ Selesai.")
