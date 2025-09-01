@@ -60,7 +60,7 @@ def get_run_status(run_id):
         return None
 
 # Tunggu sampai run selesai atau timeout
-def wait_run_complete(run_id, timeout=180, interval=10):
+def wait_run_complete(run_id, timeout=300, interval=10):
     elapsed = 0
     while elapsed < timeout:
         status = get_run_status(run_id)
