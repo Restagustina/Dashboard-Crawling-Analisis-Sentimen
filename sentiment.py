@@ -91,19 +91,15 @@ def update_sentiment_in_supabase():
 # =======================
 # Supabase Utils
 # =======================
-def is_review_exist(review_id):
-    res = supabase.table("comments").select("review_id").eq("review_id", review_id).execute()
-    return bool(res.data)
-
 def save_reviews_to_supabase(reviews, source):
     for review in reviews:
-        if not review.get("review_id") or is_review_exist(review["review_id"]):
-            continue
-        
+        if not review.get("review_id"):
+            continue  # Abaikan jika review_id kosong
+
         created_at_val = review.get("created_at")
         if isinstance(created_at_val, datetime):
             created_at_val = created_at_val.isoformat()
-        
+
         data = {
             "review_id": review["review_id"],
             "source": source,
