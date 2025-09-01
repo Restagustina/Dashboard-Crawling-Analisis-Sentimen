@@ -9,9 +9,11 @@ import plotly.express as px
 from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 
+
 @st.cache_resource
 def get_client():
     return get_supabase_client()
+
 
 # -------------------------
 # Page config
@@ -19,6 +21,7 @@ def get_client():
 st.set_page_config(page_title="Analisis Sentimen Review", page_icon="📊", layout="wide")
 PRIMARY = "#20B2AA"
 BG = "#f5f7fa"
+
 
 
 st.markdown(
@@ -98,6 +101,9 @@ def clear_cache():
 DEFAULT_GMAPS_URL = st.secrets.get("GMAPS_URL", "https://www.google.com/maps/place/Samsat+UPTB+Palembang+1/@-2.9870757,104.7412692,17z/data=!4m6!3m5!1s0x2e3b75e6afb58fa1:0xb83c1a47293793d7!8m2!3d-2.9870757!4d104.7438441!16s%2Fg%2F11c6rj50mr?entry=ttu&g_ep=EgoyMDI1MDgxMC4wIKXMDSoASAFQAw%3D%3D")
 DEFAULT_PLAY_PACKAGE = st.secrets.get("PLAYSTORE_PACKAGE", "app.signal.id")
 
+# Squid ID Lobstr.io, simpan di secrets.toml juga (ganti dengan squid_id asli milik Anda)
+SQUID_ID = st.secrets.get("LOBSTR_SQUID_ID", "450ea08f9f034efeb3fc9e24bf501cde")
+
 
 # -------------------------
 # Top navigation
@@ -165,7 +171,6 @@ if selected == "Home":
     else:
         st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
 
-
     st.markdown("---")
     st.subheader("Komentar terbaru")
     if df.empty:
@@ -213,16 +218,17 @@ elif selected == "Crawl Data":
                 else:
                     if play_param:
                         run_crawling_and_analysis(
-                            gmaps_url=None,  # Hanya crawl Play Store
-                            app_package_name=play_param
+                            gmaps_url=None,
+                            app_package_name=play_param,
                         )
                         clear_cache()
                         st.success("Crawling Play Store selesai! Silakan buka tab lain untuk melihat hasil.")
 
                     if gmaps_param:
                         run_crawling_and_analysis(
-                            gmaps_url=gmaps_param,  # Crawl Google Maps secara manual saat klik tombol
-                            app_package_name=None
+                            gmaps_url=gmaps_param,
+                            app_package_name=None,
+                            squid_id=SQUID_ID,
                         )
                         clear_cache()
                         st.success("Crawling Google Maps selesai! Silakan buka tab lain untuk melihat hasil.")
@@ -381,6 +387,7 @@ elif selected == "Visualisasi":
                 st.pyplot(fig3, use_container_width=True)
             else:
                 st.info("Tidak ada data untuk tren komentar.")
+
 
 # -------------------------
 # Tentang

@@ -7,7 +7,7 @@ from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 import streamlit as st
 
 # Lobstr.io API untuk crawling GMaps
-LOBSTR_API_TOKEN = st.secrets.get("LOBSTR_API_TOKEN")  # ambil langsung dari secrets Streamlit
+LOBSTR_API_TOKEN = st.secrets.get("LOBSTR_API_TOKEN")
 LOBSTR_API_BASE = "https://api.lobstr.io/v1"
 
 # Play Store Scraper
@@ -17,11 +17,9 @@ except ImportError:
     playstore_reviews = None
     print("⚠️ Module google_play_scraper belum terinstall, Play Store scraping nonaktif.")
 
-# =======================
-# Panggil API eksternal Lobstr.io tambah task
-# =======================
-def call_external_api(payload=None):
-    api_url = f"{LOBSTR_API_BASE}/tasks"
+# Fungsi helper memanggil API Lobstr.io
+def call_external_api(payload=None, endpoint="tasks"):
+    api_url = f"{LOBSTR_API_BASE}/{endpoint}"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Token {LOBSTR_API_TOKEN}"
@@ -36,61 +34,87 @@ def call_external_api(payload=None):
         print(f"Gagal memanggil API eksternal: {e}")
         return None
 
-# =======================
-# Fungsi panggilan crawling dengan payload task
-# =======================
-def start_crawling_with_lobstr(squid_id, urls):
+# Tambah task ke squid
+def add_tasks_to_squid(squid_id, urls):
     payload = {
         "cluster": squid_id,
         "tasks": [{"url": url} for url in urls]
     }
-    result = call_external_api(payload)
-    return result
+    return call_external_api(payload, endpoint="tasks")
 
-# =======================
-# GMaps Scraper via Lobstr.io API
-# =======================
+# Run squid
+def run_squid(squid_id):
+    payload = {"cluster": squid_id}
+    return call_external_api(payload, endpoint="runs")
+
+# Cek status run berdasarkan run_id
+def get_run_status(run_id):
+    url = f"{LOBSTR_API_BASE}/runs/{run_id}"
+    headers = {"Authorization": f"Token {LOBSTR_API_TOKEN}"}
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        print(f"Gagal cek status run: {e}")
+        return None
+
+# Tunggu sampai run selesai atau timeout
+def wait_run_complete(run_id, timeout=180, interval=10):
+    elapsed = 0
+    while elapsed < timeout:
+        status = get_run_status(run_id)
+        if not status:
+            print("Gagal ambil status run, coba ulang.")
+        else:
+            if status.get("is_done"):
+                print("Run Task selesai.")
+                return True
+            elif status.get("status") == "failed":
+                print("Run Task gagal.")
+                return False
+        time.sleep(interval)
+        elapsed += interval
+        print(f"Tunggu run selesai... {elapsed}s berlalu")
+    print("Timeout menunggu run selesai.")
+    return False
+
+# Fungsi ambil review dari Lobstr.io (mengubah hasil csv/json jadi dict sesuai kolom penting Lobstr)
 def get_gmaps_reviews_lobstr(gmaps_url, max_reviews=10):
     headers = {
         "Authorization": f"Token {LOBSTR_API_TOKEN}",
         "Accept": "application/json",
     }
-
     endpoint = f"{LOBSTR_API_BASE}/crawlers/google_maps/reviews"
-
     params = {
         "url": gmaps_url,
         "max_results": max_reviews,
     }
-
     response = requests.get(endpoint, headers=headers, params=params)
     if response.status_code == 200:
         data = response.json()
         reviews = []
         for item in data.get("reviews", []):
+            # Sesuaikan mapping dengan kolom disesuaikan dari CSV Lobstr yang diberikan:
             reviews.append({
-                "review_id": item.get("id"),
-                "username": item.get("user_name"),
-                "comment_text": item.get("comment"),
-                "rating": item.get("rating"),
-                "created_at": item.get("time"),
+                "review_id": item.get("ID") or item.get("INTERNAL REVIEW ID") or item.get("id"),
+                "username": item.get("USER NAME") or item.get("user_name"),
+                "comment_text": item.get("TEXT") or item.get("comment") or item.get("content"),
+                "rating": float(item.get("SCORE", 0)),
+                "created_at": item.get("PUBLISHED AT DATETIME") or item.get("time"),
             })
         return reviews
     else:
         print(f"Failed fetching Lobstr GMaps reviews: {response.status_code} {response.text}")
         return []
 
-# =======================
-# Play Store Scraper
-# =======================
+# Play Store Scraper (tetap sama)
 def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loops=5):
     if playstore_reviews is None:
         return []
-
     all_reviews = []
     cursor = None
     loops = 0
-
     try:
         while loops < max_loops:
             loops += 1
@@ -110,7 +134,6 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
                     if attempt == max_retries:
                         return all_reviews
                     time.sleep(random.uniform(2, 5))
-
             for rev in result:
                 all_reviews.append({
                     "review_id": str(rev.get("reviewId")),
@@ -119,39 +142,45 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
                     "rating": rev.get("score"),
                     "created_at": rev.get("at").isoformat() if isinstance(rev.get("at"), datetime) else None
                 })
-
             if cursor is None:
                 break
-
     except Exception as e:
         print(f"⚠️ Fatal error scraping Play Store: {e}")
     return all_reviews
 
-# =======================
-# Main Run crawling dan Analisis
-# =======================
-def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews=10):
-    # Crawling GMaps
-    if gmaps_url:
-        print("📌 Crawling GMaps...")
-        gmaps_reviews = get_gmaps_reviews_lobstr(gmaps_url, max_reviews=max_reviews)
-        print(f"DEBUG: Jumlah review GMaps yang ditemukan = {len(gmaps_reviews)}")
-        if gmaps_reviews:
-            save_reviews_to_supabase(gmaps_reviews, "gmaps")
+# Fungsi utama run crawling dan analisis terintegrasi dengan crawling Lobstr dan Play Store
+def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews=10, squid_id=None):
+    if gmaps_url and squid_id:
+        print("📌 Crawling GMaps otomatis dengan trigger Lobstr...")
+        if not add_tasks_to_squid(squid_id, [gmaps_url]):
+            print("⚠️ Gagal tambah tasks di Lobstr")
+            return
+        run_resp = run_squid(squid_id)
+        if not run_resp or "id" not in run_resp:
+            print("⚠️ Gagal trigger run squid.")
+            return
+        run_id = run_resp["id"]
+        print(f"Menunggu run selesai, run id: {run_id}")
+        if not wait_run_complete(run_id):
+            print("⚠️ Run task gagal atau timeout")
+            return
+        print("Mengambil data review hasil crawling...")
+        reviews = get_gmaps_reviews_lobstr(gmaps_url, max_reviews)
+        if reviews:
+            save_reviews_to_supabase(reviews, "gmaps")
+            print(f"{len(reviews)} review berhasil disimpan ke Supabase.")
         else:
-            print("⚠️ Tidak ada review GMaps yang ditemukan!")
-
-    # Crawling Play Store
+            print("⚠️ Tidak ada review yang ditemukan.")
+    # Crawling Play Store tetap berjalan
     if app_package_name:
         print("📌 Crawling Play Store...")
         ps_reviews = get_playstore_reviews_app(app_package_name, count=max_reviews)
-        print(f"DEBUG: Jumlah review Play Store yang ditemukan = {len(ps_reviews)}")
         if ps_reviews:
             save_reviews_to_supabase(ps_reviews, "playstore")
+            print(f"{len(ps_reviews)} review Play Store berhasil disimpan ke Supabase.")
         else:
-            print("⚠️ Tidak ada review Play Store yang ditemukan!")
-
-    # Analisis Sentimen (jika ada data baru)
+            print("⚠️ Tidak ada review Play Store ditemukan.")
+    # Update sentimen
     if gmaps_url or app_package_name:
         print("📌 Update sentiment...")
         update_sentiment_in_supabase()
