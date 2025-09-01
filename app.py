@@ -9,11 +9,9 @@ import plotly.express as px
 from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 
-
 @st.cache_resource
 def get_client():
     return get_supabase_client()
-
 
 # -------------------------
 # Page config
@@ -208,6 +206,7 @@ elif selected == "Crawl Data":
     run_btn = st.button("🚀 Mulai Crawling & Analisis", type="primary", use_container_width=True)
 
     if run_btn:
+        status_placeholder = st.empty()  # Buat placeholder untuk status
         with st.spinner("Menjalankan crawling dan analisis..."):
             try:
                 gmaps_param = gmaps_url.strip() if gmaps_url and source in ["Google Maps", "Keduanya"] else None
@@ -216,28 +215,18 @@ elif selected == "Crawl Data":
                 if not gmaps_param and not play_param:
                     st.warning("Isi minimal salah satu: Google Maps URL atau Play Store Package.")
                 else:
-                    if play_param:
-                        run_crawling_and_analysis(
-                            gmaps_url=None,
-                            app_package_name=play_param,
-                        )
-                        clear_cache()
-                        st.success("Crawling Play Store selesai! Silakan buka tab lain untuk melihat hasil.")
-
-                    if gmaps_param:
-                        run_crawling_and_analysis(
-                            gmaps_url=gmaps_param,
-                            app_package_name=None,
-                            squid_id=SQUID_ID,
-                        )
-                        clear_cache()
-                        st.success("Crawling Google Maps selesai! Silakan buka tab lain untuk melihat hasil.")
-
+                    run_crawling_and_analysis(
+                        gmaps_url=gmaps_param,
+                        app_package_name=play_param,
+                        squid_id=SQUID_ID,
+                        status_placeholder=status_placeholder  # Kirim placeholder
+                    )
+                    clear_cache()
+                    st.success("Crawling selesai! Silakan buka tab lain untuk melihat hasil.")
             except Exception as e:
                 st.error(f"Gagal menjalankan crawling: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 # -------------------------
 # Analisis

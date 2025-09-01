@@ -149,41 +149,59 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
     return all_reviews
 
 # Fungsi utama run crawling dan analisis terintegrasi dengan crawling Lobstr dan Play Store
-def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews=10, squid_id=None):
+def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews=10, squid_id=None, status_placeholder=None):
     if gmaps_url and squid_id:
-        print("📌 Crawling GMaps otomatis dengan trigger Lobstr...")
+        if status_placeholder:
+            status_placeholder.text("📌 Crawling Google Maps...")
         if not add_tasks_to_squid(squid_id, [gmaps_url]):
-            print("⚠️ Gagal tambah tasks di Lobstr")
+            if status_placeholder:
+                status_placeholder.error("⚠️ Gagal tambah tasks ke Lobstr")
             return
         run_resp = run_squid(squid_id)
         if not run_resp or "id" not in run_resp:
-            print("⚠️ Gagal trigger run squid.")
+            if status_placeholder:
+                status_placeholder.error("⚠️ Gagal trigger run squid.")
             return
         run_id = run_resp["id"]
-        print(f"Menunggu run selesai, run id: {run_id}")
+        if status_placeholder:
+            status_placeholder.text(f"Menunggu run selesai, run id: {run_id}...")
         if not wait_run_complete(run_id):
-            print("⚠️ Run task gagal atau timeout")
+            if status_placeholder:
+                status_placeholder.error("⚠️ Run task gagal atau timeout")
             return
-        print("Mengambil data review hasil crawling...")
+        if status_placeholder:
+            status_placeholder.text("Mengambil data review hasil crawling...")
         reviews = get_gmaps_reviews_lobstr(gmaps_url, max_reviews)
         if reviews:
+            if status_placeholder:
+                status_placeholder.text(f"Berhasil ambil {len(reviews)} review, menyimpan ke Supabase...")
             save_reviews_to_supabase(reviews, "gmaps")
-            print(f"{len(reviews)} review berhasil disimpan ke Supabase.")
+            if status_placeholder:
+                status_placeholder.success(f"{len(reviews)} review berhasil disimpan ke Supabase.")
         else:
-            print("⚠️ Tidak ada review yang ditemukan.")
-    # Crawling Play Store tetap berjalan
+            if status_placeholder:
+                status_placeholder.warning("⚠️ Tidak ada review yang ditemukan.")
+    # Play Store crawling tetap
     if app_package_name:
-        print("📌 Crawling Play Store...")
+        if status_placeholder:
+            status_placeholder.text("📌 Crawling Play Store...")
         ps_reviews = get_playstore_reviews_app(app_package_name, count=max_reviews)
         if ps_reviews:
+            if status_placeholder:
+                status_placeholder.text(f"Berhasil ambil {len(ps_reviews)} review Play Store, menyimpan ke Supabase...")
             save_reviews_to_supabase(ps_reviews, "playstore")
-            print(f"{len(ps_reviews)} review Play Store berhasil disimpan ke Supabase.")
+            if status_placeholder:
+                status_placeholder.success(f"{len(ps_reviews)} review Play Store berhasil disimpan ke Supabase.")
         else:
-            print("⚠️ Tidak ada review Play Store ditemukan.")
+            if status_placeholder:
+                status_placeholder.warning("⚠️ Tidak ada review Play Store ditemukan.")
     # Update sentimen
     if gmaps_url or app_package_name:
-        print("📌 Update sentiment...")
+        if status_placeholder:
+            status_placeholder.text("📌 Memulai update sentimen...")
         update_sentiment_in_supabase()
-        print("✅ Selesai.")
+        if status_placeholder:
+            status_placeholder.success("✅ Analisis sentimen selesai.")
     else:
-        print("⚠️ Tidak ada sumber data yang dipilih, proses dibatalkan.")
+        if status_placeholder:
+            status_placeholder.warning("⚠️ Tidak ada sumber data yang dipilih, proses dibatalkan.")
