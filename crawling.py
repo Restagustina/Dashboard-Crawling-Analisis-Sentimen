@@ -10,6 +10,46 @@ import streamlit as st
 LOBSTR_API_TOKEN = st.secrets.get("LOBSTR_API_TOKEN")
 LOBSTR_API_BASE = "https://api.lobstr.io/v1"
 
+# Fungsi cek sisa kredit Lobstr
+def get_credits_left():
+    url = f"{LOBSTR_API_BASE}/account/credits"
+    headers = {"Authorization": f"Token {LOBSTR_API_TOKEN}"}
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        credits_left = data.get("credits_left", 0)
+        print(f"Sisa kredit Lobstr: {credits_left}")
+        return credits_left
+    except Exception as e:
+        print(f"⚠️ Gagal dapatkan kredit Lobstr: {e}")
+        return 0
+
+
+# Fungsi cek apakah data run terakhir sudah masuk ke Supabase
+def check_data_in_supabase(run_id):
+    # Implementasi sesuaikan sistem Supabase kamu, ini contoh dummy
+    print(f"Check data di Supabase untuk run_id {run_id} (dummy True)")
+    return True  # ganti dengan query nyata
+
+
+# Fungsi helper memanggil API Lobstr.io
+def call_external_api(payload=None, endpoint="tasks"):
+    api_url = f"{LOBSTR_API_BASE}/{endpoint}"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Token {LOBSTR_API_TOKEN}"
+    }
+    try:
+        if payload is None:
+            payload = {}
+        response = requests.post(api_url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        print(f"Gagal memanggil API eksternal: {e}")
+        return None
+
 # Play Store Scraper
 try:
     from google_play_scraper import reviews as playstore_reviews
