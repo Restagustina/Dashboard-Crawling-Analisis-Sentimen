@@ -175,13 +175,24 @@ def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews
         if reviews:
             if status_placeholder:
                 status_placeholder.text(f"Berhasil ambil {len(reviews)} review, menyimpan ke Supabase...")
-            save_reviews_to_supabase(reviews, "gmaps")
-            if status_placeholder:
-                status_placeholder.success(f"{len(reviews)} review berhasil disimpan ke Supabase.")
+            try:
+                saved = save_reviews_to_supabase(reviews, "gmaps")
+                if saved:
+                    if status_placeholder:
+                        status_placeholder.success(f"{len(reviews)} review berhasil disimpan ke Supabase.")
+                else:
+                    if status_placeholder:
+                        status_placeholder.error("⚠️ Beberapa review gagal disimpan ke Supabase, cek log.")
+            except Exception as e:
+                error_msg = f"⚠️ Gagal simpan review ke Supabase: {e}"
+                print(error_msg)
+                if status_placeholder:
+                    status_placeholder.error(error_msg)
         else:
             if status_placeholder:
                 status_placeholder.warning("⚠️ Tidak ada review yang ditemukan.")
-    # Play Store crawling tetap
+
+    # Play Store crawling tetap sama, tambah error handling serupa
     if app_package_name:
         if status_placeholder:
             status_placeholder.text("📌 Crawling Play Store...")
@@ -189,13 +200,24 @@ def run_crawling_and_analysis(gmaps_url=None, app_package_name=None, max_reviews
         if ps_reviews:
             if status_placeholder:
                 status_placeholder.text(f"Berhasil ambil {len(ps_reviews)} review Play Store, menyimpan ke Supabase...")
-            save_reviews_to_supabase(ps_reviews, "playstore")
-            if status_placeholder:
-                status_placeholder.success(f"{len(ps_reviews)} review Play Store berhasil disimpan ke Supabase.")
+            try:
+                saved = save_reviews_to_supabase(ps_reviews, "playstore")
+                if saved:
+                    if status_placeholder:
+                        status_placeholder.success(f"{len(ps_reviews)} review Play Store berhasil disimpan ke Supabase.")
+                else:
+                    if status_placeholder:
+                        status_placeholder.error("⚠️ Beberapa review Play Store gagal disimpan ke Supabase, cek log.")
+            except Exception as e:
+                error_msg = f"⚠️ Gagal simpan review Play Store ke Supabase: {e}"
+                print(error_msg)
+                if status_placeholder:
+                    status_placeholder.error(error_msg)
         else:
             if status_placeholder:
                 status_placeholder.warning("⚠️ Tidak ada review Play Store ditemukan.")
-    # Update sentimen
+
+    # Update sentimen tetap sama
     if gmaps_url or app_package_name:
         if status_placeholder:
             status_placeholder.text("📌 Memulai update sentimen...")

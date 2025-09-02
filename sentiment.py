@@ -92,6 +92,9 @@ def update_sentiment_in_supabase():
 # Supabase Utils
 # =======================
 def save_reviews_to_supabase(reviews, source):
+    success_count = 0
+    total = len(reviews)
+
     for review in reviews:
         if not review.get("review_id"):
             continue  # Abaikan jika review_id kosong
@@ -112,6 +115,14 @@ def save_reviews_to_supabase(reviews, source):
             "processed_at": None
         }
         try:
-            supabase.table("comments").insert(data).execute()
+            response = supabase.table("comments").upsert(data, on_conflict="review_id").execute()
+            if response.status_code in (200, 201):
+                print(f"✔️ Review ID {review['review_id']} berhasil disimpan/upsert.")
+                success_count += 1
+            else:
+                print(f"❌ Gagal simpan review ID {review['review_id']}, status: {response.status_code}, response: {response.data}")
         except Exception as e:
-            print(f"⚠️ Gagal insert review {review['review_id']}: {e}")
+            print(f"⚠️ Exception saat simpan review ID {review['review_id']}: {e}")
+
+    print(f"✅ {success_count} dari {total} review berhasil disimpan.")
+    return success_count == total
