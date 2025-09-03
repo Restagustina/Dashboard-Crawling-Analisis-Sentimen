@@ -1,4 +1,3 @@
-# app.py
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -9,9 +8,11 @@ import plotly.express as px
 from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 
+
 @st.cache_resource
 def get_client():
     return get_supabase_client()
+
 
 # -------------------------
 # Page config
@@ -19,8 +20,6 @@ def get_client():
 st.set_page_config(page_title="Analisis Sentimen Review", page_icon="📊", layout="wide")
 PRIMARY = "#20B2AA"
 BG = "#f5f7fa"
-
-
 
 st.markdown(
     f"""
@@ -52,7 +51,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 # -------------------------
 # Helpers
 # -------------------------
@@ -78,7 +76,6 @@ def load_comments():
         st.error(f"Gagal mengambil data dari Supabase: {e}")
         return pd.DataFrame()
 
-
 def generate_wordcloud(text_series, max_words=150):
     text = " ".join(text_series.dropna().astype(str).values)
     if not text.strip():
@@ -88,19 +85,15 @@ def generate_wordcloud(text_series, max_words=150):
     wc = WordCloud(width=900, height=400, background_color="white", max_words=max_words, stopwords=stopwords_set).generate(text)
     return wc
 
-
 def clear_cache():
     load_comments.clear()
 
-
 # -------------------------
-# Default values untuk Crawl dari secrets (fallback kalau tidak ada)
+# Default values untuk Crawl dari secrets (kata kunci & lokasi)
 # -------------------------
-DEFAULT_GMAPS_URL = st.secrets.get("GMAPS_URL", "https://www.google.com/maps/place/Samsat+UPTB+Palembang+1/@-2.9870757,104.7412692,17z/data=!4m6!3m5!1s0x2e3b75e6afb58fa1:0xb83c1a47293793d7!8m2!3d-2.9870757!4d104.7438441!16s%2Fg%2F11c6rj50mr?entry=ttu&g_ep=EgoyMDI1MDgxMC4wIKXMDSoASAFQAw%3D%3D")
+DEFAULT_SEARCH_TERM = st.secrets.get("GMAPS_SEARCH_TERM", "Samsat UPTB Palembang")
+DEFAULT_LOCATION = st.secrets.get("GMAPS_LOCATION", "Palembang, Indonesia")
 DEFAULT_PLAY_PACKAGE = st.secrets.get("PLAYSTORE_PACKAGE", "app.signal.id")
-
-# Squid ID Lobstr.io (dari secrets)
-SQUID_ID = st.secrets.get("LOBSTR_SQUID_ID", "ca34205da2734c0aafad0d5bfbc473cf")
 
 # -------------------------
 # Top navigation
@@ -112,7 +105,6 @@ selected = option_menu(
     default_index=0,
     orientation="horizontal",
 )
-
 
 # -------------------------
 # Home
@@ -180,7 +172,6 @@ if selected == "Home":
         )
     st.button("🔄 Refresh data", on_click=clear_cache)
 
-
 # -------------------------
 # Crawl Data
 # -------------------------
@@ -190,11 +181,8 @@ elif selected == "Crawl Data":
 
     source = st.radio("Pilih sumber review:", ["Google Maps", "Google Play Store", "Keduanya"], index=0, horizontal=True)
 
-    gmaps_url = st.text_input(
-        "Google Maps Place URL (support place_id URL)",
-        value=DEFAULT_GMAPS_URL if source in ["Google Maps", "Keduanya"] else "",
-        placeholder="https://www.google.com/maps/place/?q=place_id:XXXX"
-    ) if source in ["Google Maps", "Keduanya"] else ""
+    search_term = st.text_input("Google Maps Search Term", DEFAULT_SEARCH_TERM) if source in ["Google Maps", "Keduanya"] else None
+    location = st.text_input("Google Maps Location", DEFAULT_LOCATION) if source in ["Google Maps", "Keduanya"] else None
 
     app_pkg = st.text_input(
         "Play Store Package Name",
@@ -208,20 +196,25 @@ elif selected == "Crawl Data":
         status_placeholder = st.empty()  # Buat placeholder untuk status
         with st.spinner("Menjalankan crawling dan analisis..."):
             try:
-                gmaps_param = gmaps_url.strip() if gmaps_url and source in ["Google Maps", "Keduanya"] else None
-                play_param = app_pkg.strip() if app_pkg and source in ["Google Play Store", "Keduanya"] else None
-
-                if not gmaps_param and not play_param:
-                    st.warning("Isi minimal salah satu: Google Maps URL atau Play Store Package.")
-                else:
-                    run_crawling_and_analysis(
-                        gmaps_url=gmaps_param,
-                        app_package_name=play_param,
-                        squid_id=SQUID_ID,
-                        status_placeholder=status_placeholder  # Kirim placeholder
-                    )
-                    clear_cache()
-                    st.success("Crawling selesai! Silakan buka tab lain untuk melihat hasil.")
+                if source in ["Google Maps", "Keduanya"]:
+                    if not search_term or not location:
+                        st.warning("Isi kata kunci dan lokasi untuk Google Maps crawling.")
+                    else:
+                        run_crawling_and_analysis(
+                            search_term=search_term.strip(),
+                            location=location.strip(),
+                            app_package_name=app_pkg.strip() if source in ["Google Play Store", "Keduanya"] else None,
+                            status_placeholder=status_placeholder
+                        )
+                elif source == "Google Play Store":
+                    if not app_pkg.strip():
+                        st.warning("Isi package name aplikasi Play Store.")
+                    else:
+                        run_crawling_and_analysis(
+                            app_package_name=app_pkg.strip(), status_placeholder=status_placeholder
+                        )
+                clear_cache()
+                st.success("Crawling selesai! Silakan buka tab lain untuk melihat hasil.")
             except Exception as e:
                 st.error(f"Gagal menjalankan crawling: {e}")
 
@@ -294,7 +287,6 @@ elif selected == "Analisis":
             use_container_width=True
         )
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 # -------------------------
 # Visualisasi
@@ -375,7 +367,6 @@ elif selected == "Visualisasi":
                 st.pyplot(fig3, use_container_width=True)
             else:
                 st.info("Tidak ada data untuk tren komentar.")
-
 
 # -------------------------
 # Tentang
