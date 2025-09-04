@@ -2,27 +2,43 @@
 import time
 import random
 from datetime import datetime
+from urllib.parse import urlsplit, parse_qsl
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 import streamlit as st
 from serpapi import GoogleSearch
 
 
-def run_serpapi_gmaps(place_id, max_reviews=15):
-    """Scraping review Google Maps pakai SerpApi (pakai Place ID)."""
+def run_serpapi_gmaps_paginated(place_id, max_reviews=15):
+    """Scraping review Google Maps pakai SerpApi dengan pagination."""
     api_key = st.secrets["SERPAPI_KEY"]
-
-    search = GoogleSearch({
+    params = {
         "engine": "google_maps_reviews",
-        "data_id": place_id,   # Gunakan Place ID Google Maps
-        "hl": "id",            # Bahasa Indonesia
+        "data_id": place_id,  # Gunakan Place ID Google Maps
+        "hl": "id",           # Bahasa Indonesia
         "api_key": api_key
-    })
+    }
 
-    results = search.get_dict()
-    reviews = results.get("reviews", [])
+    search = GoogleSearch(params)
+    all_reviews = []
+
+    while True:
+        results = search.get_dict()
+        if not results or "error" in results:
+            break
+
+        reviews = results.get("reviews", [])
+        all_reviews.extend(reviews)
+
+        serpapi_pagination = results.get("serpapi_pagination", {})
+        next_url = serpapi_pagination.get("next")
+
+        if next_url and len(all_reviews) < max_reviews:
+            search.params_dict.update(dict(parse_qsl(urlsplit(next_url).query)))
+        else:
+            break
 
     cleaned_reviews = []
-    for rev in reviews[:max_reviews]:
+    for rev in all_reviews[:max_reviews]:
         cleaned_reviews.append({
             "review_id": rev.get("review_id"),
             "username": rev.get("user", {}).get("name") if isinstance(rev.get("user"), dict) else rev.get("user"),
@@ -93,7 +109,7 @@ def run_crawling_and_analysis(place_id=None, app_package_name=None, max_reviews=
         if status_placeholder:
             status_placeholder.text("📌 Crawling Google Maps via SerpApi...")
         try:
-            gmaps_results = run_serpapi_gmaps(place_id, max_reviews)
+            gmaps_results = run_serpapi_gmaps_paginated(place_id, max_reviews)
             if gmaps_results:
                 if status_placeholder:
                     status_placeholder.text(f"Berhasil ambil {len(gmaps_results)} review Google Maps, menyimpan ke Supabase...")
