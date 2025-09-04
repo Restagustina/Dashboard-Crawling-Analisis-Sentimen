@@ -9,11 +9,9 @@ import plotly.express as px
 from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 
-
 @st.cache_resource
 def get_client():
     return get_supabase_client()
-
 
 # -------------------------
 # Page config
@@ -51,7 +49,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
 
 # -------------------------
 # Helpers
@@ -192,8 +189,8 @@ elif selected == "Crawl Data":
 
     source = st.radio("Pilih sumber review:", ["Google Maps", "Google Play Store", "Keduanya"], index=0, horizontal=True)
 
-    search_term = st.text_input("Google Maps Search Term", DEFAULT_SEARCH_TERM) if source in ["Google Maps", "Keduanya"] else None
-    location = st.text_input("Google Maps Location", DEFAULT_LOCATION) if source in ["Google Maps", "Keduanya"] else None
+    # Ambil nilai dari secrets untuk Google Maps Place ID
+    place_id = st.secrets.get("PLACE_ID", "")
 
     app_pkg = st.text_input(
         "Play Store Package Name",
@@ -204,15 +201,16 @@ elif selected == "Crawl Data":
     run_btn = st.button("🚀 Mulai Crawling & Analisis", type="primary", use_container_width=True)
 
     if run_btn:
-        status_placeholder = st.empty()  # Buat placeholder untuk status
+        status_placeholder = st.empty()  # Placeholder untuk status
+
         with st.spinner("Menjalankan crawling dan analisis..."):
             try:
                 if source in ["Google Maps", "Keduanya"]:
-                    if not search_term or not location:
-                        st.warning("Isi kata kunci dan lokasi untuk Google Maps crawling.")
+                    if not place_id:
+                        st.warning("PLACE_ID harus diisi (cek secrets) untuk crawling Google Maps.")
                     else:
                         run_crawling_and_analysis(
-                            search_term=search_term.strip(),
+                            place_id=place_id,
                             app_package_name=app_pkg.strip() if source in ["Google Play Store", "Keduanya"] else None,
                             status_placeholder=status_placeholder,
                         )
@@ -220,14 +218,16 @@ elif selected == "Crawl Data":
                     if not app_pkg.strip():
                         st.warning("Isi package name aplikasi Play Store.")
                     else:
-                        run_crawling_and_analysis(app_package_name=app_pkg.strip(), status_placeholder=status_placeholder)
+                        run_crawling_and_analysis(
+                            app_package_name=app_pkg.strip(),
+                            status_placeholder=status_placeholder,
+                        )
                 clear_cache()
                 st.success("Crawling selesai! Silakan buka tab lain untuk melihat hasil.")
             except Exception as e:
                 st.error(f"Gagal menjalankan crawling: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 # -------------------------
 # Analisis
