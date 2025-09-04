@@ -109,11 +109,12 @@ def save_reviews_to_supabase(reviews, source):
 
         try:
             response = supabase.table("comments").upsert(data, on_conflict="review_id").execute()
+            print(f"Upsert response status: {response.status_code}, response data: {response.data}")
             if response.status_code in (200, 201):
                 print(f"✔️ Review ID {review['review_id']} berhasil disimpan/upsert.")
                 success_count += 1
             else:
-                print(f"❌ Gagal simpan review ID {review['review_id']}, status: {response.status_code}, response: {response.data}")
+                print(f"❌ Gagal simpan review ID {review['review_id']}, status code: {response.status_code}, response: {response.data}")
         except Exception as e:
             print(f"⚠️ Exception saat simpan review ID {review['review_id']}: {e}")
 
