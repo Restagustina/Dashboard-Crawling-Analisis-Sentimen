@@ -84,11 +84,14 @@ def update_sentiment_in_supabase():
         }).eq("review_id", review["review_id"]).execute()
 
 def save_reviews_to_supabase(reviews, source):
+    print(f"[INFO] Mulai menyimpan {len(reviews)} review dari sumber {source} ke Supabase.")
     success_count = 0
     total = len(reviews)
 
     for review in reviews:
+        print(f"[DEBUG] Memproses review ID: {review.get('review_id')}")
         if not review.get("review_id"):
+            print("[WARNING] Review tanpa review_id ditemukan dan diabaikan.")
             continue  # Abaikan review tanpa ID unik
 
         created_at_val = review.get("created_at")
@@ -109,14 +112,13 @@ def save_reviews_to_supabase(reviews, source):
 
         try:
             response = supabase.table("comments").upsert(data, on_conflict="review_id").execute()
-            print(f"Upsert response status: {response.status_code}, response data: {response.data}")
             if response.status_code in (200, 201):
-                print(f"✔️ Review ID {review['review_id']} berhasil disimpan/upsert.")
+                print(f"[SUCCESS] Review ID {review['review_id']} berhasil disimpan/upsert.")
                 success_count += 1
             else:
-                print(f"❌ Gagal simpan review ID {review['review_id']}, status code: {response.status_code}, response: {response.data}")
+                print(f"[ERROR] Gagal simpan review ID {review['review_id']}, status code: {response.status_code}, response: {response.data}")
         except Exception as e:
-            print(f"⚠️ Exception saat simpan review ID {review['review_id']}: {e}")
+            print(f"[EXCEPTION] Saat simpan review ID {review['review_id']}: {e}")
 
-    print(f"✅ {success_count} dari {total} review berhasil disimpan.")
+    print(f"[INFO] Total {success_count} dari {total} review berhasil disimpan ke Supabase.")
     return success_count == total
