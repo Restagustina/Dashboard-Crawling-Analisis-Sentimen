@@ -9,16 +9,15 @@ from apify_client import ApifyClient
 # Ambil API TOKEN Apify dari Streamlit secrets
 API_TOKEN = st.secrets["API_TOKEN"]
 client = ApifyClient(API_TOKEN)
-ACTOR_ID = 'compass/crawler-google-places'  # ID actor Google Maps Scraper
+ACTOR_ID = 'compass/Google-Maps-Scraper'  # ID actor Google Maps Scraper terbaru
 
 # Fungsi untuk scraping Google Maps via Apify
-def run_google_maps_scraper(search_term, location, max_reviews=15):
+def run_google_maps_scraper(search_term, max_reviews=15):
     run_input = {
-        "search": search_term,
-        "location": location,
-        "maxCrawledPlacesPerSearch": 50,
+        "searchStringsArray": [search_term],   # ✅ wajib array
         "includeReviews": True,
-        "maxReviewsPerPlace": max_reviews,
+        "maxReviews": max_reviews,
+        "maxCrawledPlacesPerSearch": 50,
         "includeImages": False,
         "includeCompanyContacts": False,
         "includeBusinessLeads": False
@@ -80,12 +79,13 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
     return all_reviews
 
 # Fungsi utama menjalankan crawling dan analisis
-def run_crawling_and_analysis(search_term=None, location=None, app_package_name=None, max_reviews=15, status_placeholder=None):
-    if search_term and location:
+def run_crawling_and_analysis(search_term=None, app_package_name=None, max_reviews=15, status_placeholder=None):
+    # --- Google Maps ---
+    if search_term:
         if status_placeholder:
             status_placeholder.text("📌 Crawling Google Maps via Apify...")
         try:
-            gmaps_results = run_google_maps_scraper(search_term, location, max_reviews)
+            gmaps_results = run_google_maps_scraper(search_term, max_reviews)
             if gmaps_results:
                 if status_placeholder:
                     status_placeholder.text(f"Berhasil ambil {len(gmaps_results)} review Google Maps, menyimpan ke Supabase...")
@@ -105,6 +105,7 @@ def run_crawling_and_analysis(search_term=None, location=None, app_package_name=
                 status_placeholder.error(msg)
             print(msg)
 
+    # --- Play Store ---
     if app_package_name:
         if status_placeholder:
             status_placeholder.text("📌 Crawling Play Store...")
@@ -129,7 +130,8 @@ def run_crawling_and_analysis(search_term=None, location=None, app_package_name=
             if status_placeholder:
                 status_placeholder.warning("⚠️ Tidak ada review Play Store ditemukan.")
 
-    if (search_term and location) or app_package_name:
+    # --- Analisis Sentimen ---
+    if search_term or app_package_name:
         if status_placeholder:
             status_placeholder.text("📌 Memulai update sentimen...")
         update_sentiment_in_supabase()
