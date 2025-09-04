@@ -11,6 +11,7 @@ from serpapi import GoogleSearch
 def run_serpapi_gmaps_paginated(place_id, max_reviews=15):
     """Scraping review Google Maps pakai SerpApi dengan pagination."""
     api_key = st.secrets["SERPAPI_KEY"]
+    print(f"[INFO] Mulai crawling Google Maps dengan place_id={place_id}")
     params = {
         "engine": "google_maps_reviews",
         "data_id": place_id,  # Gunakan Place ID Google Maps
@@ -23,10 +24,13 @@ def run_serpapi_gmaps_paginated(place_id, max_reviews=15):
 
     while True:
         results = search.get_dict()
+        print(f"[DEBUG] Keys di results: {list(results.keys()) if results else 'None'}")
         if not results or "error" in results:
+            print(f"[WARNING] Error atau data kosong dari SerpApi: {results.get('error') if results else 'No data'}")
             break
 
         reviews = results.get("reviews", [])
+        print(f"[DEBUG] Jumlah review batch ini: {len(reviews)}")
         all_reviews.extend(reviews)
 
         serpapi_pagination = results.get("serpapi_pagination", {})
@@ -34,9 +38,11 @@ def run_serpapi_gmaps_paginated(place_id, max_reviews=15):
 
         if next_url and len(all_reviews) < max_reviews:
             search.params_dict.update(dict(parse_qsl(urlsplit(next_url).query)))
+            print(f"[INFO] Lanjut ke halaman berikutnya, total review saat ini: {len(all_reviews)}")
         else:
             break
 
+    print(f"[INFO] Total review yang dikumpulkan: {len(all_reviews[:max_reviews])}")
     cleaned_reviews = []
     for rev in all_reviews[:max_reviews]:
         cleaned_reviews.append({
@@ -110,6 +116,7 @@ def run_crawling_and_analysis(place_id=None, app_package_name=None, max_reviews=
             status_placeholder.text("📌 Crawling Google Maps via SerpApi...")
         try:
             gmaps_results = run_serpapi_gmaps_paginated(place_id, max_reviews)
+            print(f"[INFO] gmaps_results: {len(gmaps_results)} review ditemukan")
             if gmaps_results:
                 if status_placeholder:
                     status_placeholder.text(f"Berhasil ambil {len(gmaps_results)} review Google Maps, menyimpan ke Supabase...")
@@ -134,6 +141,7 @@ def run_crawling_and_analysis(place_id=None, app_package_name=None, max_reviews=
         if status_placeholder:
             status_placeholder.text("📌 Crawling Play Store...")
         ps_reviews = get_playstore_reviews_app(app_package_name, count=max_reviews)
+        print(f"[INFO] ps_reviews: {len(ps_reviews)} review ditemukan")
         if ps_reviews:
             if status_placeholder:
                 status_placeholder.text(f"Berhasil ambil {len(ps_reviews)} review Play Store, menyimpan ke Supabase...")
@@ -158,9 +166,9 @@ def run_crawling_and_analysis(place_id=None, app_package_name=None, max_reviews=
     if place_id or app_package_name:
         if status_placeholder:
             status_placeholder.text("📌 Memulai update sentimen...")
-        update_sentiment_in_supabase()
+        updated_count = update_sentiment_in_supabase()
         if status_placeholder:
-            status_placeholder.success("✅ Analisis sentimen selesai.")
+            status_placeholder.success(f"✅ Analisis sentimen selesai. {updated_count} review dianalisis.")
     else:
         if status_placeholder:
             status_placeholder.warning("⚠️ Tidak ada sumber data yang dipilih, proses dibatalkan.")
