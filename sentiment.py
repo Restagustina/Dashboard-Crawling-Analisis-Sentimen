@@ -4,7 +4,6 @@ import re
 from datetime import datetime
 from supabase_utils import get_supabase_client
 
-# Sentiment
 import nltk
 from nltk.corpus import stopwords
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
@@ -13,23 +12,28 @@ from transformers import pipeline
 # Setup Supabase client
 supabase = get_supabase_client()
 
-USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-
-# =======================
-# Sentiment Analysis
-# =======================
+# Download stopwords bahasa Indonesia (jika belum)
 nltk.download('stopwords', quiet=True)
 stop_words = set(stopwords.words('indonesian'))
-stemmer = StemmerFactory().create_stemmer()
+
+# Setup stemmer Bahasa Indonesia
+stemmer_factory = StemmerFactory()
+stemmer = stemmer_factory.create_stemmer()
+
+# Setup sentiment analysis pipeline dengan model IndoBERT
 sentiment_pipeline = pipeline("sentiment-analysis", model="mdhugol/indonesia-bert-sentiment-classification")
 
 def preprocess_text(text):
     if not text:
         return ""
-    text = re.sub(r"http\S+|www\S+|https\S+", '', text)
-    text = re.sub(r'[!?.]{2,}', '.', text)
-    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
-    return text.lower().strip()
+    text = re.sub(r"http\S+|www\S+|https\S+", '', text)  # Hapus URL
+    text = re.sub(r'[!?.]{2,}', '.', text)               # Ganti tanda baca berulang jadi satu
+    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)           # Hapus karakter non-alphanumeric
+    text = text.lower().strip()
+    # Optionally: lakukan stemming di sini
+    tokens = text.split()
+    tokens_stemmed = [stemmer.stem(token) for token in tokens if token not in stop_words]
+    return " ".join(tokens_stemmed)
 
 def analyze_sentiment(text):
     if not text:
@@ -39,7 +43,7 @@ def analyze_sentiment(text):
         return "neutral", 0.0
     print(f"[DEBUG] Text ke pipeline: {clean_text[:512]}")
     result = sentiment_pipeline(clean_text[:512])
-    label = result[0]['label'].lower()   # bisa positive / negative / neutral atau label_0/1/2
+    label = result[0]['label'].lower()
     score = float(result[0]['score'])
     print(f"[DEBUG] Label: {label}, Score: {score}")
     return label, score
@@ -47,20 +51,14 @@ def analyze_sentiment(text):
 def analyze_sentiment_with_rating(text, rating=None):
     label, score = analyze_sentiment(text)
     if rating is not None:
+        # Overwrite label dan score berdasarkan rating untuk akurasi label manual
         if rating <= 2:
             label, score = "negative", 1.0
         elif rating >= 4:
             label, score = "positive", 1.0
     return label, score
 
-# =======================
-# Mapping Label
-# =======================
 def map_sentiment_label(label):
-    """
-    Mapping semua kemungkinan output model ke label resmi:
-    positif, negatif, netral
-    """
     mapping = {
         "positive": "positif",
         "negative": "negatif",
@@ -69,18 +67,15 @@ def map_sentiment_label(label):
         "label_1": "negatif",
         "label_2": "netral"
     }
-    return mapping.get(label, "netral")  # default netral
+    return mapping.get(label, "netral")
 
-# =======================
-# Update Sentiment in Supabase
-# =======================
 def update_sentiment_in_supabase():
     res = supabase.table("comments").select("*").is_("sentimen_label", None).execute()
     for review in res.data:
         text = review.get("comment_text", "")
         rating = review.get("rating")
         label, score = analyze_sentiment_with_rating(text, rating)
-        label_mapped = map_sentiment_label(label)  # pakai mapping sebelum simpan
+        label_mapped = map_sentiment_label(label)
 
         supabase.table("comments").update({
             "sentimen_label": label_mapped,
@@ -88,16 +83,13 @@ def update_sentiment_in_supabase():
             "processed_at": datetime.now().isoformat()
         }).eq("review_id", review["review_id"]).execute()
 
-# =======================
-# Supabase Utils
-# =======================
 def save_reviews_to_supabase(reviews, source):
     success_count = 0
     total = len(reviews)
 
     for review in reviews:
         if not review.get("review_id"):
-            continue  # Abaikan jika review_id kosong
+            continue  # Abaikan review tanpa ID unik
 
         created_at_val = review.get("created_at")
         if isinstance(created_at_val, datetime):
@@ -114,6 +106,7 @@ def save_reviews_to_supabase(reviews, source):
             "sentiment_score": None,
             "processed_at": None
         }
+
         try:
             response = supabase.table("comments").upsert(data, on_conflict="review_id").execute()
             if response.status_code in (200, 201):

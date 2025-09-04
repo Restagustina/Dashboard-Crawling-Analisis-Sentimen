@@ -1,3 +1,4 @@
+# app.py
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -51,6 +52,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # -------------------------
 # Helpers
 # -------------------------
@@ -76,6 +78,7 @@ def load_comments():
         st.error(f"Gagal mengambil data dari Supabase: {e}")
         return pd.DataFrame()
 
+
 def generate_wordcloud(text_series, max_words=150):
     text = " ".join(text_series.dropna().astype(str).values)
     if not text.strip():
@@ -85,8 +88,10 @@ def generate_wordcloud(text_series, max_words=150):
     wc = WordCloud(width=900, height=400, background_color="white", max_words=max_words, stopwords=stopwords_set).generate(text)
     return wc
 
+
 def clear_cache():
     load_comments.clear()
+
 
 # -------------------------
 # Default values untuk Crawl dari secrets (kata kunci & lokasi)
@@ -94,6 +99,7 @@ def clear_cache():
 DEFAULT_SEARCH_TERM = st.secrets.get("GMAPS_SEARCH_TERM", "Samsat UPTB Palembang")
 DEFAULT_LOCATION = st.secrets.get("GMAPS_LOCATION", "Palembang, Indonesia")
 DEFAULT_PLAY_PACKAGE = st.secrets.get("PLAYSTORE_PACKAGE", "app.signal.id")
+
 
 # -------------------------
 # Top navigation
@@ -106,6 +112,7 @@ selected = option_menu(
     orientation="horizontal",
 )
 
+
 # -------------------------
 # Home
 # -------------------------
@@ -116,15 +123,19 @@ if selected == "Home":
     st.markdown("</div>", unsafe_allow_html=True)
 
     df = load_comments()
-    c1, c2, c3, c4 = st.columns([1,1,1,1])
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
     total = len(df)
     pos = int((df["sentimen_label"] == "positif").sum()) if not df.empty else 0
     neg = int((df["sentimen_label"] == "negatif").sum()) if not df.empty else 0
     neu = int((df["sentimen_label"] == "netral").sum()) if not df.empty else 0
-    with c1: st.metric("Total Komentar", total)
-    with c2: st.metric("Positif", pos)
-    with c3: st.metric("Netral", neu)
-    with c4: st.metric("Negatif", neg)
+    with c1:
+        st.metric("Total Komentar", total)
+    with c2:
+        st.metric("Positif", pos)
+    with c3:
+        st.metric("Netral", neu)
+    with c4:
+        st.metric("Negatif", neg)
 
     if not df.empty and "created_at" in df.columns:
         today = pd.Timestamp.now().normalize()
@@ -156,7 +167,6 @@ if selected == "Home":
         st.markdown("---")
         st.subheader("Performa Perbaikan Sentimen")
         st.markdown(f"<h1 style='color:{warna}; font-weight:bold;'>{score_today_100}%</h1>", unsafe_allow_html=True)
-    
     else:
         st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
 
@@ -168,9 +178,10 @@ if selected == "Home":
         st.dataframe(
             df[["source", "username", "comment_text", "rating", "sentimen_label", "sentiment_score", "created_at"]].head(12),
             height=350,
-            use_container_width=True
+            use_container_width=True,
         )
     st.button("🔄 Refresh data", on_click=clear_cache)
+
 
 # -------------------------
 # Crawl Data
@@ -187,7 +198,7 @@ elif selected == "Crawl Data":
     app_pkg = st.text_input(
         "Play Store Package Name",
         value=DEFAULT_PLAY_PACKAGE if source in ["Google Play Store", "Keduanya"] else "",
-        placeholder="com.example.app"
+        placeholder="com.example.app",
     ) if source in ["Google Play Store", "Keduanya"] else ""
 
     run_btn = st.button("🚀 Mulai Crawling & Analisis", type="primary", use_container_width=True)
@@ -202,23 +213,21 @@ elif selected == "Crawl Data":
                     else:
                         run_crawling_and_analysis(
                             search_term=search_term.strip(),
-                            location=location.strip(),
                             app_package_name=app_pkg.strip() if source in ["Google Play Store", "Keduanya"] else None,
-                            status_placeholder=status_placeholder
+                            status_placeholder=status_placeholder,
                         )
                 elif source == "Google Play Store":
                     if not app_pkg.strip():
                         st.warning("Isi package name aplikasi Play Store.")
                     else:
-                        run_crawling_and_analysis(
-                            app_package_name=app_pkg.strip(), status_placeholder=status_placeholder
-                        )
+                        run_crawling_and_analysis(app_package_name=app_pkg.strip(), status_placeholder=status_placeholder)
                 clear_cache()
                 st.success("Crawling selesai! Silakan buka tab lain untuk melihat hasil.")
             except Exception as e:
                 st.error(f"Gagal menjalankan crawling: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 # -------------------------
 # Analisis
@@ -232,9 +241,9 @@ elif selected == "Analisis":
         st.info("Belum ada data. Silakan lakukan Crawling Data.")
     else:
         sumber_filter = st.selectbox(
-            "Pilih Sumber", 
-            options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), 
-            index=0
+            "Pilih Sumber",
+            options=["Semua"] + sorted(df["source"].dropna().unique().tolist()),
+            index=0,
         )
         df_filtered = df.copy()
         if sumber_filter != "Semua":
@@ -245,10 +254,14 @@ elif selected == "Analisis":
         neg = int((df_filtered["sentimen_label"] == "negatif").sum())
         neu = int((df_filtered["sentimen_label"] == "netral").sum())
         c1, c2, c3, c4 = st.columns(4)
-        with c1: st.metric("Total Komentar", total)
-        with c2: st.metric("Positif", pos)
-        with c3: st.metric("Netral", neu)
-        with c4: st.metric("Negatif", neg)
+        with c1:
+            st.metric("Total Komentar", total)
+        with c2:
+            st.metric("Positif", pos)
+        with c3:
+            st.metric("Netral", neu)
+        with c4:
+            st.metric("Negatif", neg)
 
         aspek_keywords = {
             "Registrasi & Verifikasi": ["daftar", "verifikasi", "akun", "gagal", "data tidak sesuai"],
@@ -257,16 +270,14 @@ elif selected == "Analisis":
             "Pelayanan & CS": ["cs", "customer service", "live chat", "respon", "pelayanan"],
             "Aplikasi & Sistem": ["error", "crash", "lambat", "gagal", "eror"],
             "Jaringan & Koneksi": ["koneksi", "internet", "sinyal", "tidak bisa"],
-            "Data Pribadi & Dokumen": ["ktp", "stnk", "data", "foto", "identifikasi"]
+            "Data Pribadi & Dokumen": ["ktp", "stnk", "data", "foto", "identifikasi"],
         }
 
         df_negatif = df_filtered[df_filtered["sentimen_label"] == "negatif"]
 
         area_perbaikan = {}
         for aspek, keywords in aspek_keywords.items():
-            count = df_negatif["comment_text"].str.lower().apply(
-                lambda x: any(kw in x for kw in keywords) if isinstance(x, str) else False
-            ).sum()
+            count = df_negatif["comment_text"].str.lower().apply(lambda x: any(kw in x for kw in keywords) if isinstance(x, str) else False).sum()
             area_perbaikan[aspek] = count
 
         area_perbaikan = {k: v for k, v in sorted(area_perbaikan.items(), key=lambda item: item[1], reverse=True) if v > 0}
@@ -284,9 +295,10 @@ elif selected == "Analisis":
         st.dataframe(
             df_filtered[["source", "username", "comment_text", "rating", "sentimen_label", "sentiment_score", "created_at"]],
             height=400,
-            use_container_width=True
+            use_container_width=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 # -------------------------
 # Visualisasi
@@ -318,7 +330,7 @@ elif selected == "Visualisasi":
             color_discrete_map={"Positif": "green", "Netral": "gray", "Negatif": "red"},
             title="Jumlah Komentar per Kategori Sentimen",
             labels={"Jumlah": "Jumlah Komentar", "Sentimen": "Kategori Sentimen"},
-            text="Jumlah"
+            text="Jumlah",
         )
         fig_bar.update_traces(textposition="outside")
         fig_bar.update_layout(yaxis=dict(dtick=1))
@@ -332,7 +344,7 @@ elif selected == "Visualisasi":
             labels = overall.index.tolist()
             sizes = overall.values.tolist()
             if sizes:
-                fig1, ax1 = plt.subplots(figsize=(4,4))
+                fig1, ax1 = plt.subplots(figsize=(4, 4))
                 ax1.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90)
                 ax1.axis("equal")
                 st.pyplot(fig1, use_container_width=True)
@@ -343,7 +355,7 @@ elif selected == "Visualisasi":
             st.subheader("WordCloud (Komentar)")
             wc = generate_wordcloud(df_filtered["comment_text"])
             if wc:
-                fig2, ax2 = plt.subplots(figsize=(6,4))
+                fig2, ax2 = plt.subplots(figsize=(6, 4))
                 ax2.imshow(wc, interpolation="bilinear")
                 ax2.axis("off")
                 st.pyplot(fig2, use_container_width=True)
@@ -356,17 +368,18 @@ elif selected == "Visualisasi":
             df_trend["month"] = df_trend["created_at"].dt.to_period("M").dt.to_timestamp()
             trend = df_trend.groupby("month").size().reset_index(name="count")
             if not trend.empty:
-                fig3, ax3 = plt.subplots(figsize=(12,4))
-                ax3.plot(trend["month"], trend["count"], marker='o', markersize=12, linestyle='-', linewidth=2, color="#20B2AA")
+                fig3, ax3 = plt.subplots(figsize=(12, 4))
+                ax3.plot(trend["month"], trend["count"], marker="o", markersize=12, linestyle="-", linewidth=2, color="#20B2AA")
                 ax3.set_xlabel("Bulan")
                 ax3.set_ylabel("Jumlah Komentar")
                 ax3.grid(alpha=0.3)
                 ax3.set_ylim(0, max(trend["count"]) * 1.4)
                 for x, y in zip(trend["month"], trend["count"]):
-                    ax3.text(x, y + 0.1, str(y), ha='center', va='bottom', fontsize=10)
+                    ax3.text(x, y + 0.1, str(y), ha="center", va="bottom", fontsize=10)
                 st.pyplot(fig3, use_container_width=True)
             else:
                 st.info("Tidak ada data untuk tren komentar.")
+
 
 # -------------------------
 # Tentang
@@ -379,6 +392,7 @@ elif selected == "Tentang":
         "analisis sentimen (IndoBERT), lalu menyimpan hasilnya ke Supabase untuk ditampilkan."
     )
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 # -------------------------
 # Footer

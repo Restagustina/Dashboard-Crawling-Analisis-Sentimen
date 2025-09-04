@@ -4,38 +4,45 @@ import random
 from datetime import datetime
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 import streamlit as st
-from apify_client import ApifyClient
+from serpapi import GoogleSearch
 
-# Ambil API TOKEN Apify dari Streamlit secrets
-API_TOKEN = st.secrets["API_TOKEN"]
-client = ApifyClient(API_TOKEN)
-ACTOR_ID = 'compass/Google-Maps-Scraper'  # ID actor Google Maps Scraper terbaru
 
-# Fungsi untuk scraping Google Maps via Apify
-def run_google_maps_scraper(search_term, max_reviews=15):
-    run_input = {
-        "searchStringsArray": [search_term],   # ✅ wajib array
-        "includeReviews": True,
-        "maxReviews": max_reviews,
-        "maxCrawledPlacesPerSearch": 50,
-        "includeImages": False,
-        "includeCompanyContacts": False,
-        "includeBusinessLeads": False
-    }
-    run = client.actor(ACTOR_ID).call(run_input=run_input)
-    dataset_id = run["defaultDatasetId"]
-    items = client.dataset(dataset_id).list_items().items
-    return items
+def run_serpapi_gmaps(place_id, max_reviews=15):
+    """Scraping review Google Maps pakai SerpApi (pakai Place ID)."""
+    api_key = st.secrets["SERPAPI_KEY"]
 
-# Modul google_play_scraper ambil review Google Play
+    search = GoogleSearch({
+        "engine": "google_maps_reviews",
+        "data_id": place_id,   # Gunakan Place ID Google Maps
+        "hl": "id",            # Bahasa Indonesia
+        "api_key": api_key
+    })
+
+    results = search.get_dict()
+    reviews = results.get("reviews", [])
+
+    cleaned_reviews = []
+    for rev in reviews[:max_reviews]:
+        cleaned_reviews.append({
+            "review_id": rev.get("review_id"),
+            "username": rev.get("user", {}).get("name") if isinstance(rev.get("user"), dict) else rev.get("user"),
+            "comment_text": rev.get("snippet"),
+            "rating": rev.get("rating"),
+            "created_at": rev.get("date")
+        })
+    return cleaned_reviews
+
+
+# --- GOOGLE PLAY STORE ---
 try:
     from google_play_scraper import reviews as playstore_reviews
 except ImportError:
     playstore_reviews = None
     print("⚠️ Module google_play_scraper belum terinstall, Play Store scraping nonaktif.")
 
-# Fungsi scraping review dari Google Play Store
+
 def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loops=5):
+    """Scraping review Play Store pakai google_play_scraper."""
     if playstore_reviews is None:
         return []
 
@@ -78,14 +85,15 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
 
     return all_reviews
 
-# Fungsi utama menjalankan crawling dan analisis
-def run_crawling_and_analysis(search_term=None, app_package_name=None, max_reviews=15, status_placeholder=None):
+
+# --- FUNGSIONAL UTAMA ---
+def run_crawling_and_analysis(place_id=None, app_package_name=None, max_reviews=15, status_placeholder=None):
     # --- Google Maps ---
-    if search_term:
+    if place_id:
         if status_placeholder:
-            status_placeholder.text("📌 Crawling Google Maps via Apify...")
+            status_placeholder.text("📌 Crawling Google Maps via SerpApi...")
         try:
-            gmaps_results = run_google_maps_scraper(search_term, max_reviews)
+            gmaps_results = run_serpapi_gmaps(place_id, max_reviews)
             if gmaps_results:
                 if status_placeholder:
                     status_placeholder.text(f"Berhasil ambil {len(gmaps_results)} review Google Maps, menyimpan ke Supabase...")
@@ -100,7 +108,7 @@ def run_crawling_and_analysis(search_term=None, app_package_name=None, max_revie
                 if status_placeholder:
                     status_placeholder.warning("⚠️ Tidak ada review Google Maps yang ditemukan.")
         except Exception as e:
-            msg = f"⚠️ Gagal crawling dan simpan data dari Apify: {e}"
+            msg = f"⚠️ Gagal crawling dan simpan data dari SerpApi: {e}"
             if status_placeholder:
                 status_placeholder.error(msg)
             print(msg)
@@ -131,7 +139,7 @@ def run_crawling_and_analysis(search_term=None, app_package_name=None, max_revie
                 status_placeholder.warning("⚠️ Tidak ada review Play Store ditemukan.")
 
     # --- Analisis Sentimen ---
-    if search_term or app_package_name:
+    if place_id or app_package_name:
         if status_placeholder:
             status_placeholder.text("📌 Memulai update sentimen...")
         update_sentiment_in_supabase()
