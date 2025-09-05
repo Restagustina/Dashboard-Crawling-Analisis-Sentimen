@@ -7,18 +7,21 @@ import streamlit as st
 from serpapi import GoogleSearch
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 
-# Inisialisasi Serpapi
-place_id = st.secrets.get("PLACE_ID")
-api_key = st.secrets.get("SERPAPI_KEY")
-
 # --- GOOGLE MAPS ---
-def run_serpapi_gmaps_paginated(place_id=place_id, api_key=api_key, max_reviews=15):
-    """Scraping review Google Maps pakai SerpApi dengan pagination."""
+def run_serpapi_gmaps_paginated(place_id=None, api_key=None, max_reviews=15):
+    # kalau tidak ada argumen, fallback ke secrets
+    place_id = place_id or st.secrets.get("PLACE_ID")
+    api_key = api_key or st.secrets.get("SERPAPI_KEY")
+
+    if not place_id or not api_key:
+        print("[ERROR] PLACE_ID atau SERPAPI_KEY tidak ditemukan!")
+        return []
+
     print(f"[INFO] Mulai crawling Google Maps dengan place_id={place_id}")
     params = {
         "engine": "google_maps_reviews",
-        "data_id": place_id,  
-        "hl": "id",           # Bahasa Indonesia
+        "data_id": place_id,
+        "hl": "id",
         "api_key": api_key
     }
 
@@ -113,7 +116,6 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
 
     return all_reviews
 
-
 # --- FUNGSIONAL UTAMA ---
 def run_crawling_and_analysis(place_id=None, app_package_name=None, max_reviews=15, status_placeholder=None):
     # --- Google Maps ---
@@ -121,21 +123,31 @@ def run_crawling_and_analysis(place_id=None, app_package_name=None, max_reviews=
         if status_placeholder:
             status_placeholder.text("📌 Crawling Google Maps via SerpApi...")
         try:
-            gmaps_results = run_serpapi_gmaps_paginated(place_id, max_reviews)
+            # Panggil dengan keyword argumen agar tidak salah urutan
+            gmaps_results = run_serpapi_gmaps_paginated(place_id=place_id, max_reviews=max_reviews)
             print(f"[INFO] gmaps_results: {len(gmaps_results)} review ditemukan")
+
             if gmaps_results:
                 if status_placeholder:
-                    status_placeholder.text(f"Berhasil ambil {len(gmaps_results)} review Google Maps, menyimpan ke Supabase...")
+                    status_placeholder.text(
+                        f"Berhasil ambil {len(gmaps_results)} review Google Maps, menyimpan ke Supabase..."
+                    )
                 saved = save_reviews_to_supabase(gmaps_results, "gmaps")
+
                 if saved:
                     if status_placeholder:
-                        status_placeholder.success(f"{len(gmaps_results)} review Google Maps berhasil disimpan ke Supabase.")
+                        status_placeholder.success(
+                            f"{len(gmaps_results)} review Google Maps berhasil disimpan ke Supabase."
+                        )
                 else:
                     if status_placeholder:
-                        status_placeholder.error("⚠️ Beberapa review Google Maps gagal disimpan ke Supabase, cek log.")
+                        status_placeholder.error(
+                            "⚠️ Beberapa review Google Maps gagal disimpan ke Supabase, cek log."
+                        )
             else:
                 if status_placeholder:
                     status_placeholder.warning("⚠️ Tidak ada review Google Maps yang ditemukan.")
+
         except Exception as e:
             msg = f"⚠️ Gagal crawling dan simpan data dari SerpApi: {e}"
             if status_placeholder:
