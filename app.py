@@ -9,6 +9,9 @@ import plotly.express as px
 from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 
+# -------------------------
+# Supabase client
+# -------------------------
 @st.cache_resource
 def get_client():
     return get_supabase_client()
@@ -61,14 +64,20 @@ def load_comments():
         data = resp.data or []
         if not data:
             return pd.DataFrame()
+
         df = pd.DataFrame(data)
         if "created_at" in df.columns:
-            df["created_at"] = df["created_at"].apply(lambda x: dateparser.parse(str(x)) if pd.notnull(x) else pd.NaT)
+            df["created_at"] = df["created_at"].apply(
+                lambda x: dateparser.parse(str(x)) if pd.notnull(x) else pd.NaT
+            )
         else:
             df["created_at"] = pd.NaT
-        for col in ["comment_text", "username", "sentimen_label", "sentiment_score", "rating", "source", "review_id"]:
+
+        for col in ["comment_text", "username", "sentimen_label",
+                    "sentiment_score", "rating", "source", "review_id"]:
             if col not in df.columns:
                 df[col] = None
+
         df = df.sort_values("created_at", ascending=False, na_position="last").reset_index(drop=True)
         return df
     except Exception as e:
@@ -82,24 +91,23 @@ def generate_wordcloud(text_series, max_words=150):
         return None
     stopwords_set = set(STOPWORDS)
     stopwords_set.update({"dan", "nya", "di", "yang", "untuk", "ini", "ke", "dari", "pada", "dengan", "juga"})
-    wc = WordCloud(width=900, height=400, background_color="white", max_words=max_words, stopwords=stopwords_set).generate(text)
-    return wc
+    return WordCloud(width=900, height=400, background_color="white",
+                     max_words=max_words, stopwords=stopwords_set).generate(text)
 
 
 def clear_cache():
     load_comments.clear()
 
-
 # -------------------------
-# Default values untuk Crawl dari secrets (kata kunci & lokasi)
+# Default values (pakai st.secrets)
 # -------------------------
 DEFAULT_SEARCH_TERM = st.secrets.get("GMAPS_SEARCH_TERM", "Samsat UPTB Palembang")
 DEFAULT_LOCATION = st.secrets.get("GMAPS_LOCATION", "Palembang, Indonesia")
 DEFAULT_PLAY_PACKAGE = st.secrets.get("PLAYSTORE_PACKAGE", "app.signal.id")
-
+PLACE_ID = st.secrets.get("PLACE_ID", "")
 
 # -------------------------
-# Top navigation
+# Navigation
 # -------------------------
 selected = option_menu(
     menu_title="",
@@ -108,7 +116,6 @@ selected = option_menu(
     default_index=0,
     orientation="horizontal",
 )
-
 
 # -------------------------
 # Home
@@ -120,7 +127,7 @@ if selected == "Home":
     st.markdown("</div>", unsafe_allow_html=True)
 
     df = load_comments()
-    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+    c1, c2, c3, c4 = st.columns(4)
     total = len(df)
     pos = int((df["sentimen_label"] == "positif").sum()) if not df.empty else 0
     neg = int((df["sentimen_label"] == "negatif").sum()) if not df.empty else 0
@@ -142,7 +149,6 @@ if selected == "Home":
         df_yesterday = df[(df["created_at"] >= yesterday) & (df["created_at"] < today)]
 
         score_today = df_today["sentiment_score"].dropna().mean() if not df_today.empty else None
-        score_yesterday = df_yesterday["sentiment_score"].dropna().mean() if not df_yesterday.empty else None
 
         def sentiment_score_to_0_100(score):
             if score is None or pd.isna(score):
@@ -151,15 +157,7 @@ if selected == "Home":
 
         score_today_100 = sentiment_score_to_0_100(score_today)
 
-        def warna_performance(persen):
-            if persen >= 70:
-                return "green"
-            elif persen >= 40:
-                return "orange"
-            else:
-                return "red"
-
-        warna = warna_performance(score_today_100)
+        warna = "green" if score_today_100 >= 70 else "orange" if score_today_100 >= 40 else "red"
 
         st.markdown("---")
         st.subheader("Performa Perbaikan Sentimen")
@@ -179,7 +177,6 @@ if selected == "Home":
         )
     st.button("🔄 Refresh data", on_click=clear_cache)
 
-
 # -------------------------
 # Crawl Data
 # -------------------------
@@ -188,9 +185,6 @@ elif selected == "Crawl Data":
     st.header("Crawl Data Review")
 
     source = st.radio("Pilih sumber review:", ["Google Maps", "Google Play Store", "Keduanya"], index=0, horizontal=True)
-
-    # Ambil nilai dari secrets untuk Google Maps Place ID
-    place_id = st.secrets.get("PLACE_ID", "")
 
     app_pkg = st.text_input(
         "Play Store Package Name",
@@ -201,16 +195,15 @@ elif selected == "Crawl Data":
     run_btn = st.button("🚀 Mulai Crawling & Analisis", type="primary", use_container_width=True)
 
     if run_btn:
-        status_placeholder = st.empty()  # Placeholder untuk status
-
+        status_placeholder = st.empty()
         with st.spinner("Menjalankan crawling dan analisis..."):
             try:
                 if source in ["Google Maps", "Keduanya"]:
-                    if not place_id:
+                    if not PLACE_ID:
                         st.warning("PLACE_ID harus diisi (cek secrets) untuk crawling Google Maps.")
                     else:
                         run_crawling_and_analysis(
-                            place_id=place_id,
+                            place_id=PLACE_ID,
                             app_package_name=app_pkg.strip() if source in ["Google Play Store", "Keduanya"] else None,
                             status_placeholder=status_placeholder,
                         )
@@ -240,28 +233,19 @@ elif selected == "Analisis":
     if df.empty:
         st.info("Belum ada data. Silakan lakukan Crawling Data.")
     else:
-        sumber_filter = st.selectbox(
-            "Pilih Sumber",
-            options=["Semua"] + sorted(df["source"].dropna().unique().tolist()),
-            index=0,
-        )
-        df_filtered = df.copy()
-        if sumber_filter != "Semua":
-            df_filtered = df_filtered[df_filtered["source"] == sumber_filter]
+        sumber_filter = st.selectbox("Pilih Sumber", options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), index=0)
+        df_filtered = df if sumber_filter == "Semua" else df[df["source"] == sumber_filter]
 
         total = len(df_filtered)
         pos = int((df_filtered["sentimen_label"] == "positif").sum())
         neg = int((df_filtered["sentimen_label"] == "negatif").sum())
         neu = int((df_filtered["sentimen_label"] == "netral").sum())
+
         c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.metric("Total Komentar", total)
-        with c2:
-            st.metric("Positif", pos)
-        with c3:
-            st.metric("Netral", neu)
-        with c4:
-            st.metric("Negatif", neg)
+        with c1: st.metric("Total Komentar", total)
+        with c2: st.metric("Positif", pos)
+        with c3: st.metric("Netral", neu)
+        with c4: st.metric("Negatif", neg)
 
         aspek_keywords = {
             "Registrasi & Verifikasi": ["daftar", "verifikasi", "akun", "gagal", "data tidak sesuai"],
@@ -274,18 +258,18 @@ elif selected == "Analisis":
         }
 
         df_negatif = df_filtered[df_filtered["sentimen_label"] == "negatif"]
-
         area_perbaikan = {}
         for aspek, keywords in aspek_keywords.items():
-            count = df_negatif["comment_text"].str.lower().apply(lambda x: any(kw in x for kw in keywords) if isinstance(x, str) else False).sum()
-            area_perbaikan[aspek] = count
-
-        area_perbaikan = {k: v for k, v in sorted(area_perbaikan.items(), key=lambda item: item[1], reverse=True) if v > 0}
+            count = df_negatif["comment_text"].str.lower().apply(
+                lambda x: any(kw in x for kw in keywords) if isinstance(x, str) else False
+            ).sum()
+            if count > 0:
+                area_perbaikan[aspek] = count
 
         st.markdown("---")
         st.subheader("Area Perbaikan (dari komentar negatif)")
         if area_perbaikan:
-            for aspek, jumlah in area_perbaikan.items():
+            for aspek, jumlah in sorted(area_perbaikan.items(), key=lambda item: item[1], reverse=True):
                 st.write(f"- **{aspek}**: {jumlah} komentar negatif")
         else:
             st.info("Tidak terdeteksi area perbaikan yang signifikan.")
@@ -299,7 +283,6 @@ elif selected == "Analisis":
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-
 # -------------------------
 # Visualisasi
 # -------------------------
@@ -312,12 +295,9 @@ elif selected == "Visualisasi":
         st.info("Tidak ada data untuk divisualisasikan.")
     else:
         sumber_filter = st.selectbox("Pilih Sumber", options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), index=0)
-        df_filtered = df.copy()
-        if sumber_filter != "Semua":
-            df_filtered = df_filtered[df_filtered["source"] == sumber_filter]
+        df_filtered = df if sumber_filter == "Semua" else df[df["source"] == sumber_filter]
 
         df_filtered["sentimen_label"] = df_filtered["sentimen_label"].astype(str).str.strip().str.lower()
-
         sentimen_counts = df_filtered["sentimen_label"].value_counts().reset_index()
         sentimen_counts.columns = ["Sentimen", "Jumlah"]
         sentimen_counts["Sentimen"] = sentimen_counts["Sentimen"].str.capitalize()
@@ -329,23 +309,19 @@ elif selected == "Visualisasi":
             color="Sentimen",
             color_discrete_map={"Positif": "green", "Netral": "gray", "Negatif": "red"},
             title="Jumlah Komentar per Kategori Sentimen",
-            labels={"Jumlah": "Jumlah Komentar", "Sentimen": "Kategori Sentimen"},
             text="Jumlah",
         )
         fig_bar.update_traces(textposition="outside")
         fig_bar.update_layout(yaxis=dict(dtick=1))
-
         st.plotly_chart(fig_bar, use_container_width=True)
 
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("Persentase Sentimen")
             overall = df_filtered["sentimen_label"].value_counts()
-            labels = overall.index.tolist()
-            sizes = overall.values.tolist()
-            if sizes:
+            if not overall.empty:
                 fig1, ax1 = plt.subplots(figsize=(4, 4))
-                ax1.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90)
+                ax1.pie(overall.values, labels=overall.index, autopct="%1.1f%%", startangle=90)
                 ax1.axis("equal")
                 st.pyplot(fig1, use_container_width=True)
             else:
@@ -369,7 +345,8 @@ elif selected == "Visualisasi":
             trend = df_trend.groupby("month").size().reset_index(name="count")
             if not trend.empty:
                 fig3, ax3 = plt.subplots(figsize=(12, 4))
-                ax3.plot(trend["month"], trend["count"], marker="o", markersize=12, linestyle="-", linewidth=2, color="#20B2AA")
+                ax3.plot(trend["month"], trend["count"], marker="o", markersize=12,
+                         linestyle="-", linewidth=2, color=PRIMARY)
                 ax3.set_xlabel("Bulan")
                 ax3.set_ylabel("Jumlah Komentar")
                 ax3.grid(alpha=0.3)
@@ -379,7 +356,6 @@ elif selected == "Visualisasi":
                 st.pyplot(fig3, use_container_width=True)
             else:
                 st.info("Tidak ada data untuk tren komentar.")
-
 
 # -------------------------
 # Tentang
@@ -392,7 +368,6 @@ elif selected == "Tentang":
         "analisis sentimen (IndoBERT), lalu menyimpan hasilnya ke Supabase untuk ditampilkan."
     )
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 # -------------------------
 # Footer

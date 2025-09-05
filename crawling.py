@@ -7,7 +7,6 @@ from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 import streamlit as st
 from serpapi import GoogleSearch
 
-
 def run_serpapi_gmaps_paginated(place_id, max_reviews=15):
     """Scraping review Google Maps pakai SerpApi dengan pagination."""
     api_key = st.secrets["SERPAPI_KEY"]
@@ -29,9 +28,9 @@ def run_serpapi_gmaps_paginated(place_id, max_reviews=15):
             print(f"[WARNING] Error atau data kosong dari SerpApi: {results.get('error') if results else 'No data'}")
             break
 
-        reviews = results.get("reviews", [])
-        print(f"[DEBUG] Jumlah review batch ini: {len(reviews)}")
-        all_reviews.extend(reviews)
+        review_results = results.get("reviews", [])
+        print(f"[DEBUG] Jumlah review batch ini: {len(review_results)}")
+        all_reviews.extend(review_results)
 
         serpapi_pagination = results.get("serpapi_pagination", {})
         next_url = serpapi_pagination.get("next")
@@ -43,17 +42,20 @@ def run_serpapi_gmaps_paginated(place_id, max_reviews=15):
             break
 
     print(f"[INFO] Total review yang dikumpulkan: {len(all_reviews[:max_reviews])}")
-    cleaned_reviews = []
-    for rev in all_reviews[:max_reviews]:
-        cleaned_reviews.append({
+
+    # Bersihkan hasil
+    cleaned_reviews = [
+        {
             "review_id": rev.get("review_id"),
             "username": rev.get("user", {}).get("name") if isinstance(rev.get("user"), dict) else rev.get("user"),
             "comment_text": rev.get("snippet"),
             "rating": rev.get("rating"),
             "created_at": rev.get("date")
-        })
-    return cleaned_reviews
+        }
+        for rev in all_reviews[:max_reviews]
+    ]
 
+    return cleaned_reviews
 
 # --- GOOGLE PLAY STORE ---
 try:

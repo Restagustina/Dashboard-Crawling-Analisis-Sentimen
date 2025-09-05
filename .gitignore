@@ -10,9 +10,6 @@ venv/
 # VSCode settings
 .vscode/
 
-# Chrome driver folder
-chromedriver-win64/
-
 # Streamlit secrets
 .streamlit/secrets.toml
 secrets.toml

@@ -1,5 +1,4 @@
 # sentiment.py
-import os
 import re
 from datetime import datetime
 from supabase_utils import get_supabase_client
