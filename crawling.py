@@ -3,17 +3,21 @@ import time
 import random
 from datetime import datetime
 from urllib.parse import urlsplit, parse_qsl
-from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 import streamlit as st
 from serpapi import GoogleSearch
+from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 
-def run_serpapi_gmaps_paginated(place_id, max_reviews=15):
+# Inisialisasi Serpapi
+place_id = st.secrets.get("PLACE_ID")
+api_key = st.secrets.get("SERPAPI_KEY")
+
+# --- GOOGLE MAPS ---
+def run_serpapi_gmaps_paginated(place_id=place_id, api_key=api_key, max_reviews=15):
     """Scraping review Google Maps pakai SerpApi dengan pagination."""
-    api_key = st.secrets["SERPAPI_KEY"]
     print(f"[INFO] Mulai crawling Google Maps dengan place_id={place_id}")
     params = {
         "engine": "google_maps_reviews",
-        "data_id": place_id,  # Gunakan Place ID Google Maps
+        "data_id": place_id,  
         "hl": "id",           # Bahasa Indonesia
         "api_key": api_key
     }
