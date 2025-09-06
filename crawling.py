@@ -1,84 +1,70 @@
-import time
-import random
-from datetime import datetime
-from urllib.parse import urlsplit, parse_qsl
+# crawling.py
 import streamlit as st
 from serpapi import GoogleSearch
+from urllib.parse import urlsplit, parse_qsl
 from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
-import json
+from datetime import datetime
+import time
+import random
 
-# ----------------- GOOGLE MAPS -----------------
-def run_serpapi_gmaps_paginated(place_id=None, api_key=None, max_reviews=15):
-    place_id = place_id or st.secrets.get("PLACE_ID")
-    api_key = api_key or st.secrets.get("SERPAPI_KEY")
-
-    if not place_id:
-        print("[ERROR] PLACE_ID tidak ditemukan di secrets.toml atau tidak diberikan sebagai argumen.")
-        return []
-    if not api_key:
-        print("[ERROR] SERPAPI_KEY tidak ditemukan di secrets.toml atau tidak diberikan sebagai argumen.")
-        return []
-
+# ========================
+# GOOGLE MAPS (SerpApi)
+# ========================
+def run_serpapi_gmaps_paginated(place_id, api_key, max_reviews=15):
+    """Scraping review Google Maps pakai SerpApi dengan pagination."""
     print(f"[INFO] Mulai crawling Google Maps dengan place_id={place_id}")
-    
+
     params = {
         "engine": "google_maps_reviews",
         "data_id": place_id,
-        "hl": "id",
-        "api_key": api_key
+        "hl": "id",  # Bahasa Indonesia
+        "api_key": api_key,
     }
-    print(f"[DEBUG] Params dikirim ke SerpApi: {params}")
 
     search = GoogleSearch(params)
     all_reviews = []
 
-    try:
-        while True:
-            results = search.get_dict()
-            print(f"[DEBUG] Hasil response mentah dari SerpApi (batch): {json.dumps(results, indent=2)}")
+    while True:
+        results = search.get_dict()
+        print(f"[DEBUG] Keys di results: {list(results.keys()) if results else 'None'}")
 
-            if not results:
-                print("[WARNING] Respons kosong dari SerpApi.")
-                break
-            if "error" in results:
-                print(f"[ERROR] Error dari SerpApi: {results.get('error')}")
-                break
-            if "reviews_results" not in results and "reviews" not in results:
-                print("[WARNING] Respons SerpApi tidak mengandung kunci 'reviews' atau 'reviews_results'.")
-                break
+        if not results or "error" in results:
+            print(f"[WARNING] Error/Empty dari SerpApi: {results.get('error') if results else 'No data'}")
+            break
 
-            current_reviews = results.get("reviews_results", results.get("reviews", []))
-            print(f"[DEBUG] Jumlah review batch ini: {len(current_reviews)}")
+        review_results = results.get("reviews", []) or results.get("reviews_results", [])
+        print(f"[DEBUG] Jumlah review batch ini: {len(review_results)}")
+        all_reviews.extend(review_results)
 
-            all_reviews.extend(current_reviews)
-            serpapi_pagination = results.get("serpapi_pagination", {})
-            next_url = serpapi_pagination.get("next")
+        serpapi_pagination = results.get("serpapi_pagination", {})
+        next_url = serpapi_pagination.get("next")
 
-            if next_url and len(all_reviews) < max_reviews:
-                search.params_dict.update(dict(parse_qsl(urlsplit(next_url).query)))
-                print(f"[INFO] Lanjut ke halaman berikutnya, total review saat ini: {len(all_reviews)}")
-            else:
-                break
-    except Exception as e:
-        print(f"[ERROR] Terjadi exception saat memanggil SerpApi: {e}")
-        return []
+        if next_url and len(all_reviews) < max_reviews:
+            search.params_dict.update(dict(parse_qsl(urlsplit(next_url).query)))
+            print(f"[INFO] Lanjut ke halaman berikutnya, total review saat ini: {len(all_reviews)}")
+        else:
+            break
 
     print(f"[INFO] Total review yang dikumpulkan: {len(all_reviews[:max_reviews])}")
 
+    # Bersihkan hasil
     cleaned_reviews = [
         {
             "review_id": rev.get("review_id"),
             "username": rev.get("user", {}).get("name") if isinstance(rev.get("user"), dict) else rev.get("user"),
             "comment_text": rev.get("snippet"),
             "rating": rev.get("rating"),
-            "created_at": rev.get("date")
+            "created_at": rev.get("date"),
         }
         for rev in all_reviews[:max_reviews]
     ]
 
     return cleaned_reviews
 
-# ----------------- GOOGLE PLAY STORE -----------------
+
+# ========================
+# GOOGLE PLAY STORE
+# ========================
 try:
     from google_play_scraper import reviews as playstore_reviews
 except ImportError:
@@ -130,70 +116,44 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
 
     return all_reviews
 
-# ----------------- MAIN FUNCTION RUNNING CRAWLING & ANALYSIS -----------------
-def run_crawling_and_analysis(place_id=None, app_package_name=None, max_reviews=15, status_placeholder=None):
-    # Google Maps crawling & saving
-    if place_id:
-        if status_placeholder:
-            status_placeholder.text("📌 Crawling Google Maps via SerpApi...")
-        try:
-            gmaps_results = run_serpapi_gmaps_paginated(place_id=place_id, max_reviews=max_reviews)
-            print(f"[INFO] gmaps_results: {len(gmaps_results) if gmaps_results else 0} review ditemukan")
 
-            if not gmaps_results:
-                if status_placeholder:
-                    status_placeholder.error("⚠️ Tidak ada review Google Maps yang ditemukan. Cek API key / place_id.")
-            else:
-                if status_placeholder:
-                    status_placeholder.text(f"Berhasil ambil {len(gmaps_results)} review Google Maps, menyimpan ke Supabase...")
-                saved = save_reviews_to_supabase(gmaps_results, "gmaps")
+# ========================
+# WRAPPER: Crawling + Analisis
+# ========================
+def run_crawling_and_analysis(source: str, status_placeholder, app_package_name=None):
+    place_id = st.secrets.get("PLACE_ID")
+    api_key = st.secrets.get("SERPAPI_KEY")
 
-                if saved:
-                    if status_placeholder:
-                        status_placeholder.success(f"{len(gmaps_results)} review Google Maps berhasil disimpan ke Supabase.")
-                else:
-                    if status_placeholder:
-                        status_placeholder.error("⚠️ Beberapa review Google Maps gagal disimpan ke Supabase, cek log.")
-        except Exception as e:
-            msg = f"⚠️ Gagal crawling dan simpan data dari SerpApi: {e}"
-            if status_placeholder:
-                status_placeholder.error(msg)
-            print(msg)
+    gmaps_results = []
+    playstore_results = []
 
-    # Play Store crawling & saving
-    if app_package_name:
-        if status_placeholder:
-            status_placeholder.text("📌 Crawling Play Store...")
-        ps_reviews = get_playstore_reviews_app(app_package_name, count=max_reviews)
-        print(f"[INFO] ps_reviews: {len(ps_reviews)} review ditemukan")
+    # --------- Google Maps ---------
+    if source in ["Google Maps", "Keduanya"]:
+        status_placeholder.info("⏳ Sedang crawling review Google Maps...")
+        gmaps_results = run_serpapi_gmaps_paginated(place_id=place_id, api_key=api_key, max_reviews=15)
 
-        if ps_reviews:
-            if status_placeholder:
-                status_placeholder.text(f"Berhasil ambil {len(ps_reviews)} review Play Store, menyimpan ke Supabase...")
-            try:
-                saved = save_reviews_to_supabase(ps_reviews, "playstore")
-                if saved:
-                    if status_placeholder:
-                        status_placeholder.success(f"{len(ps_reviews)} review Play Store berhasil disimpan ke Supabase.")
-                else:
-                    if status_placeholder:
-                        status_placeholder.error("⚠️ Beberapa review Play Store gagal disimpan ke Supabase, cek log.")
-            except Exception as e:
-                error_msg = f"⚠️ Gagal simpan review Play Store ke Supabase: {e}"
-                print(error_msg)
-                if status_placeholder:
-                    status_placeholder.error(error_msg)
+        if not gmaps_results:
+            status_placeholder.error("⚠️ Tidak ada review Google Maps ditemukan. Stop proses.")
+            print("[INFO] Tidak ada review ditemukan dari SerpApi. Stop proses Google Maps.")
         else:
-            if status_placeholder:
-                status_placeholder.warning("⚠️ Tidak ada review Play Store ditemukan.")
+            print(f"[INFO] Simpan {len(gmaps_results)} review Google Maps ke Supabase...")
+            save_reviews_to_supabase(gmaps_results, "gmaps")
 
-    # Run sentiment analysis update only if at least one source provided
-    if place_id or app_package_name:
-        if status_placeholder:
-            status_placeholder.text("📌 Memulai update sentimen...")
-        updated_count = update_sentiment_in_supabase()
-        if status_placeholder:
-            status_placeholder.success(f"✅ Analisis sentimen selesai. {updated_count} review dianalisis.")
-    else:
-        if status_placeholder:
-            status_placeholder.warning("⚠️ Tidak ada sumber data yang dipilih, proses dibatalkan.")
+            updated = update_sentiment_in_supabase()
+            status_placeholder.success(f"✅ Analisis sentimen Google Maps selesai. {updated} review dianalisis.")
+
+    # --------- Google Play Store ---------
+    if source in ["Google Play Store", "Keduanya"]:
+        status_placeholder.info("⏳ Sedang crawling review Google Play Store...")
+        if app_package_name:
+            playstore_results = get_playstore_reviews_app(app_package_name, count=15)
+
+            if playstore_results:
+                save_reviews_to_supabase(playstore_results, "playstore")
+                updated = update_sentiment_in_supabase()
+                status_placeholder.success(f"✅ Analisis sentimen Play Store selesai. {updated} review dianalisis.")
+            else:
+                status_placeholder.warning("⚠️ Tidak ada review Play Store yang ditemukan.")
+
+    print("[INFO] Crawling selesai.")
+    status_placeholder.info("Crawling selesai! Silakan buka tab lain untuk melihat hasil.")
