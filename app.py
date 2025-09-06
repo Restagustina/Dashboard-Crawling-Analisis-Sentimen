@@ -84,7 +84,6 @@ def load_comments():
         st.error(f"Gagal mengambil data dari Supabase: {e}")
         return pd.DataFrame()
 
-
 def generate_wordcloud(text_series, max_words=150):
     text = " ".join(text_series.dropna().astype(str).values)
     if not text.strip():
@@ -94,17 +93,14 @@ def generate_wordcloud(text_series, max_words=150):
     return WordCloud(width=900, height=400, background_color="white",
                      max_words=max_words, stopwords=stopwords_set).generate(text)
 
-
 def clear_cache():
     load_comments.clear()
 
 # -------------------------
-# Default values (pakai st.secrets)
+# Default values (fix ke Samsat Palembang 1)
 # -------------------------
-DEFAULT_SEARCH_TERM = st.secrets.get("GMAPS_SEARCH_TERM", "Samsat UPTB Palembang")
-DEFAULT_LOCATION = st.secrets.get("GMAPS_LOCATION", "Palembang, Indonesia")
+PLACE_ID = "ChIJp0n34s8Hby4RERmH9p84D44"  # Google Maps Place ID Samsat Palembang 1
 DEFAULT_PLAY_PACKAGE = st.secrets.get("PLAYSTORE_PACKAGE", "app.signal.id")
-PLACE_ID = st.secrets.get("PLACE_ID", "")
 
 # -------------------------
 # Navigation
@@ -132,38 +128,28 @@ if selected == "Home":
     pos = int((df["sentimen_label"] == "positif").sum()) if not df.empty else 0
     neg = int((df["sentimen_label"] == "negatif").sum()) if not df.empty else 0
     neu = int((df["sentimen_label"] == "netral").sum()) if not df.empty else 0
-    with c1:
-        st.metric("Total Komentar", total)
-    with c2:
-        st.metric("Positif", pos)
-    with c3:
-        st.metric("Netral", neu)
-    with c4:
-        st.metric("Negatif", neg)
+    with c1: st.metric("Total Komentar", total)
+    with c2: st.metric("Positif", pos)
+    with c3: st.metric("Netral", neu)
+    with c4: st.metric("Negatif", neg)
 
     if not df.empty and "created_at" in df.columns:
         today = pd.Timestamp.now().normalize()
         yesterday = today - pd.Timedelta(days=1)
-
         df_today = df[(df["created_at"] >= today) & (df["created_at"] < today + pd.Timedelta(days=1))]
-        df_yesterday = df[(df["created_at"] >= yesterday) & (df["created_at"] < today)]
-
         score_today = df_today["sentiment_score"].dropna().mean() if not df_today.empty else None
 
-        def sentiment_score_to_0_100(score):
-            if score is None or pd.isna(score):
-                return 0
+        def score_to_percent(score):
+            if score is None or pd.isna(score): return 0
             return int((score + 1) * 50)
 
-        score_today_100 = sentiment_score_to_0_100(score_today)
-
+        score_today_100 = score_to_percent(score_today)
         warna = "green" if score_today_100 >= 70 else "orange" if score_today_100 >= 40 else "red"
-
         st.markdown("---")
         st.subheader("Performa Perbaikan Sentimen")
         st.markdown(f"<h1 style='color:{warna}; font-weight:bold;'>{score_today_100}%</h1>", unsafe_allow_html=True)
     else:
-        st.info("Data sentimen untuk hari ini dan kemarin tidak cukup untuk menampilkan performa.")
+        st.info("Data sentimen belum cukup untuk ditampilkan.")
 
     st.markdown("---")
     st.subheader("Komentar terbaru")
@@ -197,19 +183,16 @@ elif selected == "Crawl Data":
         status_placeholder = st.empty()
         with st.spinner("Menjalankan crawling dan analisis..."):
             try:
-                if source in ["Google Maps", "Keduanya"] and not PLACE_ID:
-                    st.warning("PLACE_ID harus diisi (cek secrets) untuk crawling Google Maps.")
-                else:
-                    run_crawling_and_analysis(
-                        source=source,
-                        app_package_name=app_pkg.strip() if source in ["Google Play Store", "Keduanya"] else None,
-                        status_placeholder=status_placeholder,
-                    )
+                run_crawling_and_analysis(
+                    source=source,
+                    place_id=PLACE_ID if source in ["Google Maps", "Keduanya"] else None,
+                    app_package_name=app_pkg.strip() if source in ["Google Play Store", "Keduanya"] else None,
+                    status_placeholder=status_placeholder,
+                )
                 clear_cache()
                 st.success("Crawling selesai! Silakan buka tab lain untuk melihat hasil.")
             except Exception as e:
                 st.error(f"Gagal menjalankan crawling: {e}")
-
     st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------
