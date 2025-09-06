@@ -34,6 +34,11 @@ def run_serpapi_gmaps_paginated(place_id, api_key, max_reviews=15):
 
         review_results = results.get("reviews", []) or results.get("reviews_results", [])
         print(f"[DEBUG] Jumlah review batch ini: {len(review_results)}")
+
+        if not review_results:
+            print("[INFO] Tidak ada review baru di batch ini. Stop crawling.")
+            break
+
         all_reviews.extend(review_results)
 
         serpapi_pagination = results.get("serpapi_pagination", {})

@@ -193,28 +193,18 @@ elif selected == "Crawl Data":
     ) if source in ["Google Play Store", "Keduanya"] else ""
 
     run_btn = st.button("🚀 Mulai Crawling & Analisis", type="primary", use_container_width=True)
-
     if run_btn:
         status_placeholder = st.empty()
         with st.spinner("Menjalankan crawling dan analisis..."):
             try:
-                if source in ["Google Maps", "Keduanya"]:
-                    if not PLACE_ID:
-                        st.warning("PLACE_ID harus diisi (cek secrets) untuk crawling Google Maps.")
-                    else:
-                        run_crawling_and_analysis(
-                            place_id=PLACE_ID,
-                            app_package_name=app_pkg.strip() if source in ["Google Play Store", "Keduanya"] else None,
-                            status_placeholder=status_placeholder,
-                        )
-                elif source == "Google Play Store":
-                    if not app_pkg.strip():
-                        st.warning("Isi package name aplikasi Play Store.")
-                    else:
-                        run_crawling_and_analysis(
-                            app_package_name=app_pkg.strip(),
-                            status_placeholder=status_placeholder,
-                        )
+                if source in ["Google Maps", "Keduanya"] and not PLACE_ID:
+                    st.warning("PLACE_ID harus diisi (cek secrets) untuk crawling Google Maps.")
+                else:
+                    run_crawling_and_analysis(
+                        source=source,
+                        app_package_name=app_pkg.strip() if source in ["Google Play Store", "Keduanya"] else None,
+                        status_placeholder=status_placeholder,
+                    )
                 clear_cache()
                 st.success("Crawling selesai! Silakan buka tab lain untuk melihat hasil.")
             except Exception as e:
