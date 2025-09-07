@@ -170,8 +170,14 @@ elif selected == "Crawl Data":
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.header("Crawl Data Review")
 
-    source = st.radio("Pilih sumber review:", ["Google Maps", "Google Play Store", "Keduanya"], index=0, horizontal=True)
+    source = st.radio(
+        "Pilih sumber review:",
+        ["Google Maps", "Google Play Store", "Keduanya"],
+        index=0,
+        horizontal=True
+    )
 
+    # kalau pilih Playstore atau Keduanya, baru munculkan input package
     app_pkg = st.text_input(
         "Play Store Package Name",
         value=DEFAULT_PLAY_PACKAGE if source in ["Google Play Store", "Keduanya"] else "",

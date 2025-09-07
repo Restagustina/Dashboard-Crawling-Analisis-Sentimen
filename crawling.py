@@ -123,10 +123,9 @@ def get_playstore_reviews_app(app_package_name, count=10, max_retries=3, max_loo
 
 
 # ========================
-# WRAPPER: Crawling + Analisis
+# Crawling + Analisis
 # ========================
-def run_crawling_and_analysis(source: str, status_placeholder, app_package_name=None):
-    place_id = st.secrets.get("PLACE_ID")
+def run_crawling_and_analysis(source: str, place_id=None, app_package_name=None, status_placeholder=None):
     api_key = st.secrets.get("SERPAPI_KEY")
 
     gmaps_results = []
@@ -134,8 +133,18 @@ def run_crawling_and_analysis(source: str, status_placeholder, app_package_name=
 
     # --------- Google Maps ---------
     if source in ["Google Maps", "Keduanya"]:
+        if not place_id:
+            status_placeholder.error("❌ PLACE_ID tidak tersedia untuk Google Maps.")
+            return
+
         status_placeholder.info("⏳ Sedang crawling review Google Maps...")
-        gmaps_results = run_serpapi_gmaps_paginated(place_id=place_id, api_key=api_key, max_reviews=15)
+        print(f"[DEBUG] Mulai crawling Google Maps, place_id={place_id}")
+
+        gmaps_results = run_serpapi_gmaps_paginated(
+            place_id=place_id,
+            api_key=api_key,
+            max_reviews=15
+        )
 
         if not gmaps_results:
             status_placeholder.error("⚠️ Tidak ada review Google Maps ditemukan. Stop proses.")
@@ -145,20 +154,28 @@ def run_crawling_and_analysis(source: str, status_placeholder, app_package_name=
             save_reviews_to_supabase(gmaps_results, "gmaps")
 
             updated = update_sentiment_in_supabase()
-            status_placeholder.success(f"✅ Analisis sentimen Google Maps selesai. {updated} review dianalisis.")
+            status_placeholder.success(
+                f"✅ Analisis sentimen Google Maps selesai. {updated} review dianalisis."
+            )
 
     # --------- Google Play Store ---------
     if source in ["Google Play Store", "Keduanya"]:
         status_placeholder.info("⏳ Sedang crawling review Google Play Store...")
+        print(f"[DEBUG] Mulai crawling Play Store, package={app_package_name}")
+
         if app_package_name:
             playstore_results = get_playstore_reviews_app(app_package_name, count=15)
 
             if playstore_results:
                 save_reviews_to_supabase(playstore_results, "playstore")
                 updated = update_sentiment_in_supabase()
-                status_placeholder.success(f"✅ Analisis sentimen Play Store selesai. {updated} review dianalisis.")
+                status_placeholder.success(
+                    f"✅ Analisis sentimen Play Store selesai. {updated} review dianalisis."
+                )
             else:
                 status_placeholder.warning("⚠️ Tidak ada review Play Store yang ditemukan.")
+        else:
+            status_placeholder.error("❌ Package name Play Store tidak diberikan.")
 
     print("[INFO] Crawling selesai.")
     status_placeholder.info("Crawling selesai! Silakan buka tab lain untuk melihat hasil.")
