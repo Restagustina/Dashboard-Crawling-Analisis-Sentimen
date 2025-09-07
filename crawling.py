@@ -6,6 +6,7 @@ from sentiment import save_reviews_to_supabase, update_sentiment_in_supabase
 from datetime import datetime
 import time
 import random
+import dateparser
 
 # ========================
 # GOOGLE MAPS (SerpApi)
@@ -16,7 +17,7 @@ def run_serpapi_gmaps_paginated(place_id, api_key, max_reviews=15):
 
     params = {
         "engine": "google_maps_reviews",
-        "data_id": place_id,
+        "place_id": place_id,
         "hl": "id",  # Bahasa Indonesia
         "api_key": api_key,
     }
@@ -58,8 +59,8 @@ def run_serpapi_gmaps_paginated(place_id, api_key, max_reviews=15):
             "review_id": rev.get("review_id"),
             "username": rev.get("user", {}).get("name") if isinstance(rev.get("user"), dict) else rev.get("user"),
             "comment_text": rev.get("snippet"),
-            "rating": rev.get("rating"),
-            "created_at": rev.get("date"),
+            "rating": None if not rev.get("rating") else int(float(rev.get("rating"))),
+            "created_at": None if not rev.get("date") else dateparser.parse(rev.get("date")),
         }
         for rev in all_reviews[:max_reviews]
     ]
