@@ -99,7 +99,7 @@ def clear_cache():
 # -------------------------
 # Default values (fix ke Samsat Palembang 1)
 # -------------------------
-PLACE_ID = "ChIJp0n34s8Hby4RERmH9p84D44"  # Google Maps Place ID Samsat Palembang 1
+PLACE_ID = "ChIJoY-1r-Z1Oy4R15M3KUcaPLg"  # Google Maps Place ID Samsat Palembang 1
 DEFAULT_PLAY_PACKAGE = st.secrets.get("PLAYSTORE_PACKAGE", "app.signal.id")
 
 # -------------------------
