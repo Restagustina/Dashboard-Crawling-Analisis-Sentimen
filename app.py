@@ -6,6 +6,8 @@ from wordcloud import WordCloud, STOPWORDS
 from streamlit_option_menu import option_menu
 import dateparser
 import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
 from crawling import run_crawling_and_analysis
 from supabase_utils import get_supabase_client
 
@@ -112,6 +114,22 @@ selected = option_menu(
     default_index=0,
     orientation="horizontal",
 )
+st.markdown(
+    """
+    <style>
+    /* Naikin posisi navbar option_menu */
+    div[data-testid="stHorizontalBlock"] div[role="tablist"] {
+        margin-top: -5px;  /* ubah sesuai kebutuhan */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# load material icons
+st.markdown("""
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+""", unsafe_allow_html=True)
 
 # -------------------------
 # Home
@@ -123,34 +141,199 @@ if selected == "Home":
     st.markdown("</div>", unsafe_allow_html=True)
 
     df = load_comments()
-    c1, c2, c3, c4 = st.columns(4)
     total = len(df)
     pos = int((df["sentimen_label"] == "positif").sum()) if not df.empty else 0
     neg = int((df["sentimen_label"] == "negatif").sum()) if not df.empty else 0
     neu = int((df["sentimen_label"] == "netral").sum()) if not df.empty else 0
-    with c1: st.metric("Total Komentar", total)
-    with c2: st.metric("Positif", pos)
-    with c3: st.metric("Netral", neu)
-    with c4: st.metric("Negatif", neg)
 
-    if not df.empty and "created_at" in df.columns:
-        today = pd.Timestamp.now().normalize()
-        yesterday = today - pd.Timedelta(days=1)
-        df_today = df[(df["created_at"] >= today) & (df["created_at"] < today + pd.Timedelta(days=1))]
-        score_today = df_today["sentiment_score"].dropna().mean() if not df_today.empty else None
+    # Helper function untuk card
+    def render_card(content: str):
+        st.markdown(
+            f"""
+            <div style='background:white; border-radius:12px; padding:16px; 
+                        text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.08);'>
+                {content}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    # Total Komentar
+    with c1:
+        render_card(f"""
+            <div style='display:flex; justify-content:center; align-items:center; gap:6px; margin-bottom:6px;'>
+                <div style='width:32px; height:32px; border-radius:50%; background-color:#6b7280;
+                            display:flex; align-items:center; justify-content:center; color:white;'>
+                    <span class="material-icons" style="font-size:20px;">chat</span>
+                </div>
+                <span style='color:#374151; font-weight:bold;'>Total Komentar</span>
+            </div>
+            <div style='font-size:28px; font-weight:bold; color:#374151;'>{total}</div>
+        """)
+
+    # Positif
+    with c2:
+        render_card(f"""
+            <div style='display:flex; justify-content:center; align-items:center; gap:6px; margin-bottom:6px;'>
+                <div style='width:32px; height:32px; border-radius:50%; background-color:#4CAF50;
+                            display:flex; align-items:center; justify-content:center; color:white;'>
+                    <span class="material-icons" style="font-size:20px;">sentiment_satisfied</span>
+                </div>
+                <span style='color:#4CAF50; font-weight:bold;'>Positif</span>
+            </div>
+            <div style='font-size:28px; font-weight:bold; color:#374151;'>{pos}</div>
+        """)
+
+    # Netral
+    with c3:
+        render_card(f"""
+            <div style='display:flex; justify-content:center; align-items:center; gap:6px; margin-bottom:6px;'>
+                <div style='width:32px; height:32px; border-radius:50%; background-color:#ffcc00;
+                            display:flex; align-items:center; justify-content:center; color:white;'>
+                    <span class="material-icons" style="font-size:20px;">sentiment_neutral</span>
+                </div>
+                <span style='color:#ff9900; font-weight:bold;'>Netral</span>
+            </div>
+            <div style='font-size:28px; font-weight:bold; color:#374151;'>{neu}</div>
+        """)
+
+    # Negatif
+    with c4:
+        render_card(f"""
+            <div style='display:flex; justify-content:center; align-items:center; gap:6px; margin-bottom:6px;'>
+                <div style='width:32px; height:32px; border-radius:50%; background-color:#f44336;
+                            display:flex; align-items:center; justify-content:center; color:white;'>
+                    <span class="material-icons" style="font-size:20px;">sentiment_dissatisfied</span>
+                </div>
+                <span style='color:#f44336; font-weight:bold;'>Negatif</span>
+            </div>
+            <div style='font-size:28px; font-weight:bold; color:#374151;'>{neg}</div>
+        """)
+
+    # --- Sentiment Meter ---
+    if not df.empty:
+        score_all = df["sentiment_score"].dropna().mean() if not df.empty else None
 
         def score_to_percent(score):
             if score is None or pd.isna(score): return 0
             return int((score + 1) * 50)
+        score_all_100 = score_to_percent(score_all)
 
-        score_today_100 = score_to_percent(score_today)
-        warna = "green" if score_today_100 >= 70 else "orange" if score_today_100 >= 40 else "red"
+        # HTML untuk ikon + teks
+        def interpret_sentiment(score_percent):
+            if score_percent == 0:
+                return "ℹ️ Belum ada data."
+            elif score_percent < 40:
+                return """
+                <div style='display:inline-flex; align-items:center; gap:8px; justify-content:center;'>
+                    <div style='width:32px; height:32px; border-radius:50%; background-color:#ff4d4d;
+                                display:flex; align-items:center; justify-content:center; color:white;'>
+                        <span class="material-icons" style="font-size:20px;">sentiment_dissatisfied</span>
+                    </div>
+                    <span><b style='color:red;'>Negatif</b> – Banyak keluhan, segera lakukan perbaikan.</span>
+                </div>
+                """
+            elif score_percent < 70:
+                return """
+                <div style='display:inline-flex; align-items:center; gap:8px; justify-content:center;'>
+                    <div style='width:32px; height:32px; border-radius:50%; background-color:#ffcc00;
+                                display:flex; align-items:center; justify-content:center; color:white;'>
+                        <span class="material-icons" style="font-size:20px;">sentiment_neutral</span>
+                    </div>
+                    <span><b style='color:orange;'>Netral</b> – Umpan balik campuran, ada kritik & apresiasi.</span>
+                </div>
+                """
+            else:
+                return """
+                <div style='display:inline-flex; align-items:center; gap:8px; justify-content:center;'>
+                    <div style='width:32px; height:32px; border-radius:50%; background-color:#4CAF50;
+                                display:flex; align-items:center; justify-content:center; color:white;'>
+                        <span class="material-icons" style="font-size:20px;">sentiment_satisfied</span>
+                    </div>
+                    <span><b style='color:green;'>Positif</b> – Mayoritas puas, pertahankan tren baik ini.</span>
+                </div>
+                """
+
         st.markdown("---")
-        st.subheader("Performa Perbaikan Sentimen")
-        st.markdown(f"<h1 style='color:{warna}; font-weight:bold;'>{score_today_100}%</h1>", unsafe_allow_html=True)
+        # --- Gauge ---
+        st.subheader("Indeks Keberhasilan Perbaikan")
+        fig_gauge = go.Figure(go.Indicator(
+            mode="gauge",
+            value=score_all_100,
+            title={'text': "Sentimen Terbaru"},
+            gauge={
+                'axis': {'range': [0, 100]},
+                'bar': {'color': "rgba(0,0,0,0)"},  # bar transparan
+                'steps': [
+                    {'range': [0, 40], 'color': "red"},
+                    {'range': [40, 70], 'color': "orange"},
+                    {'range': [70, 100], 'color': "green"},
+                ],
+            }
+        ))
+
+        # Hitung posisi jarum
+        angle = (score_all_100 / 100) * 180
+        radians = np.deg2rad(angle)
+        needle_length = 0.17
+        center_x, center_y = 0.5, 0.38
+
+        x = center_x + needle_length * np.cos(np.pi - radians)
+        y = center_y + needle_length * np.sin(np.pi - radians)
+
+        # Jarum
+        fig_gauge.add_shape(type="line",
+            x0=center_x, y0=center_y, x1=x, y1=y,
+            line=dict(color="black", width=3)
+        )
+
+        # Bulatan tengah
+        fig_gauge.add_shape(type="circle",
+            x0=center_x-0.015, y0=center_y-0.015,
+            x1=center_x+0.015, y1=center_y+0.015,
+            fillcolor="black", line_color="black"
+        )
+
+        # --- Scatter transparan supaya hover aktif ---
+        theta = np.linspace(0, np.pi, 200)
+        xs = 0.5 + 0.35 * np.cos(theta)
+        ys = 0.38 + 0.35 * np.sin(theta)
+
+        fig_gauge.add_trace(go.Scatter(
+            x=xs, y=ys,
+            mode="lines",
+            line=dict(width=0),
+            fill="toself",
+            fillcolor="rgba(0,0,0,0)",
+            hoverinfo="text",
+            text=[f"<b>{score_all_100}%</b>"]*len(xs),
+            showlegend=False,
+            name=""   
+        ))
+
+        fig_gauge.update_layout(
+            height=400,
+            margin=dict(l=40, r=40, t=40, b=40),
+            paper_bgcolor="white",
+            plot_bgcolor="white",
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False)
+        )
+
+        st.plotly_chart(fig_gauge, use_container_width=True)
+
+        # --- Keterangan detail di bawah gauge (tengah) ---
+        st.markdown(
+            f"<div style='text-align:center; margin-top:12px;'>{interpret_sentiment(score_all_100)}</div>",
+            unsafe_allow_html=True
+        )
+
     else:
         st.info("Data sentimen belum cukup untuk ditampilkan.")
 
+    # --- Tabel komentar terbaru ---
     st.markdown("---")
     st.subheader("Komentar terbaru")
     if df.empty:
@@ -220,11 +403,71 @@ elif selected == "Analisis":
         neg = int((df_filtered["sentimen_label"] == "negatif").sum())
         neu = int((df_filtered["sentimen_label"] == "netral").sum())
 
+        # Helper function untuk card
+        def render_card(content: str):
+            st.markdown(
+                f"""
+                <div style='background:white; border-radius:12px; padding:16px; 
+                            text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.08);'>
+                    {content}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
         c1, c2, c3, c4 = st.columns(4)
-        with c1: st.metric("Total Komentar", total)
-        with c2: st.metric("Positif", pos)
-        with c3: st.metric("Netral", neu)
-        with c4: st.metric("Negatif", neg)
+
+        # Total Komentar
+        with c1:
+            render_card(f"""
+                <div style='display:flex; justify-content:center; align-items:center; gap:6px; margin-bottom:6px;'>
+                    <div style='width:32px; height:32px; border-radius:50%; background-color:#6b7280;
+                                display:flex; align-items:center; justify-content:center; color:white;'>
+                        <span class="material-icons" style="font-size:20px;">chat</span>
+                    </div>
+                    <span style='color:#374151; font-weight:bold;'>Total Komentar</span>
+                </div>
+                <div style='font-size:28px; font-weight:bold; color:#374151;'>{total}</div>
+            """)
+
+        # Positif
+        with c2:
+            render_card(f"""
+                <div style='display:flex; justify-content:center; align-items:center; gap:6px; margin-bottom:6px;'>
+                    <div style='width:32px; height:32px; border-radius:50%; background-color:#4CAF50;
+                                display:flex; align-items:center; justify-content:center; color:white;'>
+                        <span class="material-icons" style="font-size:20px;">sentiment_satisfied</span>
+                    </div>
+                    <span style='color:#4CAF50; font-weight:bold;'>Positif</span>
+                </div>
+                <div style='font-size:28px; font-weight:bold; color:#374151;'>{pos}</div>
+            """)
+
+        # Netral
+        with c3:
+            render_card(f"""
+                <div style='display:flex; justify-content:center; align-items:center; gap:6px; margin-bottom:6px;'>
+                    <div style='width:32px; height:32px; border-radius:50%; background-color:#ffcc00;
+                                display:flex; align-items:center; justify-content:center; color:white;'>
+                        <span class="material-icons" style="font-size:20px;">sentiment_neutral</span>
+                    </div>
+                    <span style='color:#ff9900; font-weight:bold;'>Netral</span>
+                </div>
+                <div style='font-size:28px; font-weight:bold; color:#374151;'>{neu}</div>
+            """)
+
+        # Negatif
+        with c4:
+            render_card(f"""
+                <div style='display:flex; justify-content:center; align-items:center; gap:6px; margin-bottom:6px;'>
+                    <div style='width:32px; height:32px; border-radius:50%; background-color:#f44336;
+                                display:flex; align-items:center; justify-content:center; color:white;'>
+                        <span class="material-icons" style="font-size:20px;">sentiment_dissatisfied</span>
+                    </div>
+                    <span style='color:#f44336; font-weight:bold;'>Negatif</span>
+                </div>
+                <div style='font-size:28px; font-weight:bold; color:#374151;'>{neg}</div>
+            """)
 
         aspek_keywords = {
             "Registrasi & Verifikasi": ["daftar", "verifikasi", "akun", "gagal", "data tidak sesuai"],
@@ -247,9 +490,41 @@ elif selected == "Analisis":
 
         st.markdown("---")
         st.subheader("Area Perbaikan (dari komentar negatif)")
+
         if area_perbaikan:
-            for aspek, jumlah in sorted(area_perbaikan.items(), key=lambda item: item[1], reverse=True):
-                st.write(f"- **{aspek}**: {jumlah} komentar negatif")
+            # Convert dict → DataFrame
+            area_df = pd.DataFrame(list(area_perbaikan.items()), columns=["Area Perbaikan", "Jumlah Komentar"])
+            total_neg = df_negatif.shape[0]
+            area_df["Persentase"] = (area_df["Jumlah Komentar"] / total_neg * 100).round(1)
+
+            # Urutkan berdasarkan jumlah komentar terbanyak
+            area_df = area_df.sort_values("Jumlah Komentar", ascending=False).reset_index(drop=True)
+
+            # Highlight tabel + format persen
+            styled_table = (
+                area_df.style
+                .background_gradient(cmap="Reds", subset=["Jumlah Komentar"])
+                .format({"Persentase": "{:.1f}%"})  # format jadi persen
+            )
+            st.dataframe(styled_table, use_container_width=True)
+
+            # Insight storytelling
+            top_issue = area_df.iloc[0]
+            insight_text = f"""
+            📊 Dari total **{total_neg} komentar negatif**, 
+            area terbanyak adalah **{top_issue['Area Perbaikan']}** 
+            dengan **{top_issue['Jumlah Komentar']} komentar ({top_issue['Persentase']}%)**.
+            """
+            if len(area_df) > 1:
+                second_issue = area_df.iloc[1]
+                insight_text += f" Disusul oleh **{second_issue['Area Perbaikan']}** dengan {second_issue['Jumlah Komentar']} komentar."
+            st.info(insight_text)
+
+            # Ranking Prioritas (Top 3)
+            st.write("### 🔝 Prioritas Perbaikan")
+            for i, row in area_df.sort_values("Jumlah Komentar", ascending=False).head(3).iterrows():
+                st.write(f"**{i+1}. {row['Area Perbaikan']}** — {row['Jumlah Komentar']} komentar ({row['Persentase']}%)")
+
         else:
             st.info("Tidak terdeteksi area perbaikan yang signifikan.")
 
@@ -273,7 +548,11 @@ elif selected == "Visualisasi":
     if df.empty:
         st.info("Tidak ada data untuk divisualisasikan.")
     else:
-        sumber_filter = st.selectbox("Pilih Sumber", options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), index=0)
+        sumber_filter = st.selectbox(
+            "Pilih Sumber", 
+            options=["Semua"] + sorted(df["source"].dropna().unique().tolist()), 
+            index=0
+        )
         df_filtered = df if sumber_filter == "Semua" else df[df["source"] == sumber_filter]
 
         df_filtered["sentimen_label"] = df_filtered["sentimen_label"].astype(str).str.strip().str.lower()
@@ -281,21 +560,25 @@ elif selected == "Visualisasi":
         sentimen_counts.columns = ["Sentimen", "Jumlah"]
         sentimen_counts["Sentimen"] = sentimen_counts["Sentimen"].str.capitalize()
 
-        fig_bar = px.bar(
-            sentimen_counts,
-            x="Sentimen",
-            y="Jumlah",
-            color="Sentimen",
-            color_discrete_map={"Positif": "green", "Netral": "gray", "Negatif": "red"},
-            title="Jumlah Komentar per Kategori Sentimen",
-            text="Jumlah",
-        )
-        fig_bar.update_traces(textposition="outside")
-        fig_bar.update_layout(yaxis=dict(dtick=1))
-        st.plotly_chart(fig_bar, use_container_width=True)
-
+        # -------------------------
+        # Baris 1 (Bar & Pie)
+        # -------------------------
         col1, col2 = st.columns(2)
         with col1:
+            st.subheader("Jumlah Komentar per Sentimen")
+            fig_bar = px.bar(
+                sentimen_counts,
+                x="Sentimen",
+                y="Jumlah",
+                color="Sentimen",
+                color_discrete_map={"Positif": "green", "Netral": "gray", "Negatif": "red"},
+                text="Jumlah",
+            )
+            fig_bar.update_traces(textposition="outside")
+            fig_bar.update_layout(yaxis=dict(dtick=1))
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        with col2:
             st.subheader("Persentase Sentimen")
             overall = df_filtered["sentimen_label"].value_counts()
             if not overall.empty:
@@ -306,7 +589,38 @@ elif selected == "Visualisasi":
             else:
                 st.info("Tidak ada data untuk pie chart.")
 
-        with col2:
+        # -------------------------
+        # Baris 2 (Trend & WordCloud)
+        # -------------------------
+        col3, col4 = st.columns(2)
+        with col3:
+            st.subheader("Tren Sentimen Mingguan")
+            df_trend = df_filtered.dropna(subset=["created_at"]).copy()
+            if not df_trend.empty:
+                df_trend["week"] = df_trend["created_at"].dt.to_period("W").dt.to_timestamp()
+                trend = df_trend.groupby(["week", "sentimen_label"]).size().reset_index(name="count")
+                trend_pivot = trend.pivot(index="week", columns="sentimen_label", values="count").fillna(0)
+
+                # Pastikan semua kolom selalu ada
+                trend_pivot = trend_pivot.reindex(columns=["positif", "netral", "negatif"], fill_value=0)
+
+                fig_area, ax_area = plt.subplots(figsize=(12, 5))
+                trend_pivot.plot.area(
+                    stacked=True,
+                    ax=ax_area,
+                    alpha=0.8,
+                    color=["green", "gray", "red"]
+                )
+
+                ax_area.set_title("Sentiment Trend (Mingguan)")
+                ax_area.set_xlabel("Minggu")
+                ax_area.set_ylabel("Jumlah Komentar")
+                ax_area.grid(alpha=0.3)
+                st.pyplot(fig_area, use_container_width=True)
+            else:
+                st.info("Tidak ada data untuk tren mingguan.")
+
+        with col4:
             st.subheader("WordCloud (Komentar)")
             wc = generate_wordcloud(df_filtered["comment_text"])
             if wc:
@@ -317,36 +631,27 @@ elif selected == "Visualisasi":
             else:
                 st.info("Tidak ada teks untuk WordCloud.")
 
-        st.subheader("Tren Komentar per Bulan")
-        df_trend = df_filtered.dropna(subset=["created_at"]).copy()
-        if not df_trend.empty:
-            df_trend["month"] = df_trend["created_at"].dt.to_period("M").dt.to_timestamp()
-            trend = df_trend.groupby("month").size().reset_index(name="count")
-            if not trend.empty:
-                fig3, ax3 = plt.subplots(figsize=(12, 4))
-                ax3.plot(trend["month"], trend["count"], marker="o", markersize=12,
-                         linestyle="-", linewidth=2, color=PRIMARY)
-                ax3.set_xlabel("Bulan")
-                ax3.set_ylabel("Jumlah Komentar")
-                ax3.grid(alpha=0.3)
-                ax3.set_ylim(0, max(trend["count"]) * 1.4)
-                for x, y in zip(trend["month"], trend["count"]):
-                    ax3.text(x, y + 0.1, str(y), ha="center", va="bottom", fontsize=10)
-                st.pyplot(fig3, use_container_width=True)
-            else:
-                st.info("Tidak ada data untuk tren komentar.")
-
 # -------------------------
 # Tentang
 # -------------------------
 elif selected == "Tentang":
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.header("Tentang")
-    st.write(
-        "Dashboard ini menggabungkan ulasan dari Google Maps dan Google Play Store, melakukan preprocessing, "
-        "analisis sentimen (IndoBERT), lalu menyimpan hasilnya ke Supabase untuk ditampilkan."
+    st.markdown(
+        '<div style="background-color:#f0f8ff; padding:25px 40px; border-radius:10px; line-height:1.6; text-align:justify;">'
+        '<h2 style="color:#008080; display:flex; align-items:center;">'
+        '<span style="margin-right:8px;">ℹ️</span> Tentang</h2>'
+        
+        '<p>Dashboard ini dibuat untuk membantu <b>UPTB Samsat Palembang 1</b> memahami pengalaman masyarakat. '
+        'Dengan menggabungkan ulasan dari <b>Google Maps</b> dan <b>Google Play Store</b>, '
+        'dashboard ini menganalisis sentimen (<i>positif, netral, negatif</i>) menggunakan teknologi <b>IndoBERT</b>.</p>'
+        
+        '<p>Hasil analisis ditampilkan dalam bentuk grafik dan insight, sehingga memudahkan tim dalam '
+        'mengidentifikasi area yang perlu ditingkatkan, seperti layanan, sistem aplikasi, maupun proses administrasi.</p>'
+        
+        '<p><b>Tujuan utama</b>: memberikan gambaran yang jelas dan cepat tentang suara masyarakat '
+        'agar perbaikan layanan bisa lebih tepat sasaran.</p>'
+        '</div>',
+        unsafe_allow_html=True
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------
 # Footer
